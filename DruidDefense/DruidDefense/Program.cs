@@ -1,6 +1,6 @@
 using System;
 
-namespace TowerDefense
+namespace DruidDefense
 {
 #if WINDOWS || XBOX
     static class Program

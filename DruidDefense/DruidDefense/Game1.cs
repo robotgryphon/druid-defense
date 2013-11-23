@@ -15,10 +15,10 @@ using Ostenvighx.Framework.Xna.Layout;
 using Ostenvighx.Framework.Xna.Entities;
 using Ostenvighx.Framework.Xna.Utilities;
 
-using TowerDefense.Tiles;
-using TowerDefense.Towers;
+using DruidDefense.Tiles;
+using DruidDefense.Towers;
 
-namespace TowerDefense
+namespace DruidDefense
 {
     /// <summary>
     /// This is the main type for your game
@@ -53,6 +53,11 @@ namespace TowerDefense
             graphics = new GraphicsDeviceManager(this);
 
             graphics.PreferredBackBufferHeight = 600;
+            graphics.PreferredBackBufferWidth = 800;
+            graphics.ApplyChanges();
+
+            Window.Title = "Druid Defenders";
+
             Content.RootDirectory = "Content";
         }
 
@@ -79,7 +84,7 @@ namespace TowerDefense
                     TileManager.SetTile(TileGridPosition, new Tile(GrassTexture, GRID_SIZE, new TilePosition(TileGridPosition, GRID_SIZE)));
                 }
 
-            Turret = new Tower(TurretSheet, new Rectangle(0, 0, 50, 50));
+            Turret = new Tower(120, TurretSheet, new Rectangle(0, 0, 50, 50), new TimeSpan(0, 0, 2));
             TurretTile = new TileWithTower(Turret, GrassTexture, GRID_SIZE, new TilePosition(Point.Zero, GRID_SIZE));
 
             TileManager.SetTile(Point.Zero, TurretTile);
@@ -156,16 +161,15 @@ namespace TowerDefense
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            // 56, 70, 19 is the grass color
+            GraphicsDevice.Clear(new Color(56, 70, 19));
 
             // Background
             TileManager.Draw(gameTime, canvas);
 
-            Turret.Draw(gameTime, canvas, TurretTile.Location);
-
             // Foreground
             canvas.Begin();
-            // canvas.DrawString(Segoe, "Tower Defense!", new Vector2(10, 10), Color.White);
+            // canvas.DrawString(Segoe, TurretTile.Location.ToString(), new Vector2(10, 10), Color.White);
 
             canvas.Draw(
                 CursorImage, 

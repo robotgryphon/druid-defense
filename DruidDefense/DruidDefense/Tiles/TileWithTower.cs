@@ -8,9 +8,9 @@ using Microsoft.Xna.Framework.Graphics;
 
 using Ostenvighx.Framework.Xna.Layout;
 
-using TowerDefense.Towers;
+using DruidDefense.Towers;
 
-namespace TowerDefense.Tiles
+namespace DruidDefense.Tiles
 {
     class TileWithTower : Tile
     {
@@ -23,12 +23,21 @@ namespace TowerDefense.Tiles
             this.TowerObject = Tower;
         }
 
+        public override void Update(GameTime time) {
+
+            TowerObject.Update(time);
+
+            base.Update(time);
+        }
         public override void Draw(GameTime time, SpriteBatch canvas)
         {
+
+            base.Draw(time, canvas);
+
             // Now draw the tower
             TowerObject.Draw(time, canvas, this.Location);
 
-            base.Draw(time, canvas);
+            
         }
     }
 }
