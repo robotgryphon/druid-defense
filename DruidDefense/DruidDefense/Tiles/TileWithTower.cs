@@ -12,15 +12,28 @@ using DruidDefense.Towers;
 
 namespace DruidDefense.Tiles
 {
-    class TileWithTower : Tile
+    public class TileWithTower : Tile
     {
         public Tower TowerObject;
 
-        public TileWithTower(Tower Tower, Texture2D TileTexture, Point TileSize, TilePosition Location)
-            : base(TileTexture, TileSize, Location)
+        public TileWithTower(Tower Tower, Texture2D TileTexture, TilePosition Location)
+            : base(TileTexture, Location)
         {
             // So it made a tile. Woo.
             this.TowerObject = Tower;
+        }
+
+        public TileWithTower(Tower Tower, Texture2D TileTexture, TilePosition Location, String UnlocalName)
+            : base(TileTexture, Location) {
+            // So it made a tile. Woo.
+            this.TowerObject = Tower;
+            this.UnlocalizedName = UnlocalName;
+        }
+
+        public override void UpdateScaling(Point NewScale)
+        {
+            base.UpdateScaling(NewScale);
+            // TowerObject.UpdateScaling(NewScale);
         }
 
         public override void Update(GameTime time) {
@@ -29,10 +42,11 @@ namespace DruidDefense.Tiles
 
             base.Update(time);
         }
-        public override void Draw(GameTime time, SpriteBatch canvas)
+
+        public override void Draw(GameTime time, Point TileSize, SpriteBatch canvas)
         {
 
-            base.Draw(time, canvas);
+            base.Draw(time, TileSize, canvas);
 
             // Now draw the tower
             TowerObject.Draw(time, canvas, this.Location);

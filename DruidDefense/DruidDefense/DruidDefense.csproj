@@ -116,6 +116,7 @@
     <Compile Include="Game1.cs" />
     <Compile Include="Tiles\TileWithTower.cs" />
     <Compile Include="Towers\Tower.cs" />
+    <Compile Include="Towers\TowerFactory.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Game.ico" />

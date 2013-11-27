@@ -15,13 +15,14 @@ namespace DruidDefense.Towers
     /// <summary>
     /// Base tile class.
     /// </summary>
-    class Tower
+    public class Tower
     {
 
         public Spritesheet TowerTextures;
 
-        public int CurrentFrame;
-        public List<Frame> TowerFrames;
+        public Frame Placeholder;
+
+        public AnimationSystem PlayingAnimation;
 
         public float Health;
         public TimeSpan ReloadSpeed;
@@ -38,10 +39,9 @@ namespace DruidDefense.Towers
         {
             this.TowerTextures = TextureSheet;
 
-            this.CurrentFrame = 0;
+            Placeholder = new Frame(DefaultDrawingArea, 1f);
 
-            this.TowerFrames = new List<Frame>();
-            this.TowerFrames.Add(new Frame(DefaultDrawingArea, 1f));
+            PlayingAnimation = new AnimationSystem(TowerTextures);
 
             this.ReloadSpeed = ReloadSpeed;
             this.TimeSinceReload = new TimeSpan();
@@ -62,7 +62,9 @@ namespace DruidDefense.Towers
         public virtual void Draw(GameTime time, SpriteBatch canvas, TilePosition location)
         {
             canvas.Begin();
-            this.TowerFrames[CurrentFrame].Draw(time, canvas, TowerTextures, location.GetDrawingLocation());
+            Vector2 DrawingLocation = location.GetDrawingLocation();
+
+            Placeholder.Draw(time, canvas, TowerTextures, DrawingLocation, 0.85f);
             canvas.End();
         }
     }
