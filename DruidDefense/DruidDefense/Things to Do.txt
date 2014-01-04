@@ -1,0 +1,10 @@
+﻿
+	THINGS TO DO LIST
+
+	1)	Creeps need to emit an event on their death.
+
+	2)	Towers need to listen in on creep death events.
+
+	3)	Implement creep movement algorithm.
+
+	4)	Sound.

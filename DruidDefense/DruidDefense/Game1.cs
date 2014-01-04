@@ -17,6 +17,7 @@ using Ostenvighx.Framework.Xna.Utilities;
 
 using DruidDefense.Tiles;
 using DruidDefense.Towers;
+using DruidDefense.Creeps;
 
 namespace DruidDefense
 {
@@ -24,6 +25,7 @@ namespace DruidDefense
     public enum GameState
     {
         Loading,
+        MenuScreen,
         Editing,
         Playing,
         CheatScreen,
@@ -45,17 +47,18 @@ namespace DruidDefense
 
         Texture2D DebugSkin;
         
-        LayoutHelper TileManager;
+        // Handlers. Handlers everywhere.
+        DefenseTileManager GridTileManager;
+        EntityHandler EntityHandler;
+        CreepHandler CreepHandler;
 
         Spritesheet TowerPlaceholders;
-        TileWithTower TurretTile;
-        Tower Turret;
-
         Texture2D GrassTexture;
 
         // Tracks where the cursor is at over the board
         public TilePosition CursorLocation;
         Texture2D CursorImage;
+        Texture2D Overlay;
 
         Point Grid_Tile_Size;
 
@@ -70,6 +73,21 @@ namespace DruidDefense
         float GridScale;
 
         Dictionary<String, float> TilePrices;
+
+        Boolean DebugMode;
+        
+        TimeSpan ControllerMoveDelay;
+        TimeSpan TimeSinceControllerMove;
+
+        TilePosition CreepStart;
+        TilePosition CreepEnd;
+
+        public static Random Randomizer;
+
+        // Creep testing stuffs.
+        public Texture2D BlobCreepSheet;
+
+        public static Direction[] PossibleDirections = { Direction.North, Direction.South, Direction.West, Direction.East };
 
         public Game1()
         {
@@ -95,6 +113,8 @@ namespace DruidDefense
 
             base.Initialize();
 
+            Randomizer = new Random();
+
             // Initialize the Input states for catching user input
             oldIS = new InputState().Update();
             newIS = new InputState().Update();
@@ -102,17 +122,20 @@ namespace DruidDefense
             // Define the size of the grid tiles
             Grid_Tile_Size = new Point(42, 42);
 
-            // Define the starting location for the editing cursor
-            CursorLocation = new TilePosition(Point.Zero, Grid_Tile_Size);
-
             // Initialize the tile manager (grid system)
-            TileManager = new LayoutHelper(new Point(16, 12), Grid_Tile_Size);
+            GridTileManager = new DefenseTileManager(new Point(16, 12), Grid_Tile_Size);
+
+            // Define the starting location for the editing cursor
+            CursorLocation = new TilePosition(Point.Zero, GridTileManager);
+
+            // Initialize the entity handler for managing creeps and projectiles
+            EntityHandler = new EntityHandler(150);
 
             // Initialize map with all grass tiles!
-            for (int TilePosX = 0; TilePosX < TileManager.GridSize.X; TilePosX++)
-                for (int TilePosY = 0; TilePosY < TileManager.GridSize.Y; TilePosY++){
+            for (int TilePosX = 0; TilePosX < GridTileManager.GridSize.X; TilePosX++)
+                for (int TilePosY = 0; TilePosY < GridTileManager.GridSize.Y; TilePosY++){
                     Point TileGridPosition = new Point(TilePosX, TilePosY);
-                    TileManager.SetTile(TileGridPosition, new Tile(GrassTexture, new TilePosition(TileGridPosition, Grid_Tile_Size), "Tile.Grass"));
+                    GridTileManager.ReplaceTile(new Tile(GrassTexture, new TilePosition(TileGridPosition, GridTileManager), "Tile.Grass"));
                 }
 
             // Initialize the cheat code system.
@@ -135,6 +158,22 @@ namespace DruidDefense
             TilePrices.Add("Tile.Grass", 0);
             TilePrices.Add("Tile.Tower.Turret", 50);
             TilePrices.Add("Tile.Tower.Tower2", 10);
+            TilePrices.Add("Tile.Tower.Tower3", 25);
+
+            DebugMode = false;
+
+            ControllerMoveDelay = new TimeSpan(0, 0, 0, 0, 500);
+            TimeSinceControllerMove = new TimeSpan();
+
+            CreepHandler = new Creeps.CreepHandler(50);
+            CreepHandler.SpawnDelay = new TimeSpan(0, 0, 2);
+
+            //new Point(Randomizer.Next(0, GridTileManager.GridSize.X), 0)
+            CreepStart = new TilePosition(new Point(3, 0), GridTileManager);
+
+            CreepEnd = new TilePosition(new Point(Randomizer.Next(0, GridTileManager.GridSize.X), GridTileManager.GridSize.Y - 1), GridTileManager);
+
+            CreepHandler.OnCreepSpawnTimeout += HandleCreepSpawnTimeout;
         }
 
         /// <summary>
@@ -155,14 +194,33 @@ namespace DruidDefense
             Segoe = Content.Load<SpriteFont>("Fonts/Segoe");
             
             // Load in a grass texture.
-            GrassTexture = Content.Load<Texture2D>("Tiles/Grass");
+            GrassTexture = Content.Load<Texture2D>("Tiles/Grass-Bordered");
 
-            TowerPlaceholders = new Spritesheet(Content.Load<Texture2D>("Towers/TowerPlaceholders"));
+            TowerPlaceholders = new Spritesheet(Content.Load<Texture2D>("Towers/Tower-Base"));
 
             CursorImage = Content.Load<Texture2D>("Images/Pointer");
 
             DebugSkin = Content.Load<Texture2D>("Images/DebugSkin");
-            
+
+            Overlay = Content.Load<Texture2D>("Tiles/Overlay");
+
+            // Creeps
+            BlobCreepSheet = Content.Load<Texture2D>("Creeps/Blob");
+        }
+
+        public void HandleCreepSpawnTimeout(CreepHandler handler, EventArgs args)
+        {
+
+
+            Direction RandomDirectionForCreep = PossibleDirections[Randomizer.Next(0, PossibleDirections.Count() - 1)];
+
+
+            BlobCreep NewCreep = new BlobCreep(new Spritesheet(BlobCreepSheet), (TilePosition) CreepStart.Clone());
+            NewCreep.LocalizedName = "BlobCreep." + CreepHandler.Entities.Count();
+            NewCreep.MovementDirection = RandomDirectionForCreep;
+            NewCreep.SpriteSystem.GetAnimation("Still").GetFrame(0).Coloration = new Color(Randomizer.Next(0, 255), Randomizer.Next(0, 255), Randomizer.Next(0, 255));
+
+            CreepHandler.AddCreep(NewCreep, GridTileManager);
         }
 
         /// <summary>
@@ -180,15 +238,15 @@ namespace DruidDefense
 
             Console.WriteLine("Cheat code entered: " + cheatcode);
 
-            if (cheatcode.Equals("MONEH"))
+            if (cheatcode.ToLower().Equals("millionare"))
             {
-                Money = int.MaxValue;
+                Money = 1000000;
             }
-            else if(cheatcode.Equals("IMMUNE"))
+            else if(cheatcode.ToLower().Equals("immune"))
             {
                 Console.WriteLine("Immunity activated.");
             }
-            else if (cheatcode.Equals("ORBITNUKE"))
+            else if (cheatcode.ToLower().Equals("orbitnuke"))
             {
                 // Oh god, nuke all the creeps
                 NukeMode = !NukeMode;
@@ -208,6 +266,8 @@ namespace DruidDefense
 
             newIS.Update();
 
+            TimeSinceControllerMove = TimeSinceControllerMove.Add(gameTime.ElapsedGameTime);
+
             if((CurrentState == GameState.Editing || CurrentState == GameState.Playing) && 
                 (newIS.controllers[0].Buttons.Back == ButtonState.Pressed || KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Escape)))
                     this.Exit();
@@ -218,93 +278,134 @@ namespace DruidDefense
                 CurrentState = GameState.CheatScreen;
             }
 
-            if (CurrentState == GameState.CheatScreen)
-            {
+            #region State Handling
+            switch (CurrentState){
+                case GameState.CheatScreen:
 
-                CheatCodeSystem.Update(gameTime, newIS);
+                    CheatCodeSystem.Update(gameTime, newIS);
 
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Back))
-                {
-                    CheatCodeSystem.DeleteInputs();
-                }
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Back))
+                    {
+                        CheatCodeSystem.DeleteInputs();
+                    }
 
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Escape))
-                {
-                    CurrentState = PreviousState;
-                    PreviousState = GameState.CheatScreen;
-                }
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Escape))
+                    {
+                        CurrentState = PreviousState;
+                        PreviousState = GameState.CheatScreen;
+                    }
+                    break;
+
+                case GameState.Editing:
+                    #region Cursor Moving
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.W) || newIS.controllers[0].ThumbSticks.Left.Y > 0)
+                        CursorLocation.Move(Direction.North);
+
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.A) || newIS.controllers[0].ThumbSticks.Left.X < 0)
+                        CursorLocation.Move(Direction.West);
+
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.S) || newIS.controllers[0].ThumbSticks.Left.Y < 0)
+                        CursorLocation.Move(Direction.South);
+
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.D) || newIS.controllers[0].ThumbSticks.Left.X > 0)
+                        CursorLocation.Move(Direction.East);
+
+                    #endregion
+
+                    #region Tower Placing
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Delete) || (oldIS.controllers[0].Buttons.Y == ButtonState.Released && newIS.controllers[0].Buttons.Y == ButtonState.Pressed)) {
+                        String TileTypeAtCursor = GridTileManager.GetTileType(CursorLocation.GridLocation);
+                        if (!TileTypeAtCursor.Equals("Tile.Grass") || !TileTypeAtCursor.Equals("Null")) {
+                            Money += TilePrices[TileTypeAtCursor];
+                            GridTileManager.ReplaceTile(new Tile(GrassTexture, (TilePosition) CursorLocation.Clone(), "Tile.Grass"));
+                        }
+                    }
+
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Z) || (oldIS.controllers[0].Buttons.A == ButtonState.Released && newIS.controllers[0].Buttons.A == ButtonState.Pressed)) {
+                        if (!GridTileManager.IsTileFilled(CursorLocation.GridLocation)) {
+                            if (Money >= TilePrices["Tile.Tower.Turret"]) {
+                                Money -= TilePrices["Tile.Tower.Turret"];
+                                TileWithTower TurretTower = TowerFactory.CreateNewTurret(TowerPlaceholders, CursorLocation, GrassTexture);
+                                GridTileManager.ReplaceTile(TurretTower);
+                            }
+                        } else {
+                            // Tile already has something in it
+                            Console.WriteLine("Tile is already filled at: " + CursorLocation.GridLocation.ToString());
+                        }
+                    }
+                    #endregion
+                    
+                    #region Swapping State Testing
+                    // We started the cheat code enterer
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.OemTilde))
+                    {
+                        PreviousState = CurrentState;
+                        CurrentState = GameState.CheatScreen;
+                    }
+
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.P) || (oldIS.controllers[0].Buttons.Start == ButtonState.Released && newIS.controllers[0].Buttons.Start == ButtonState.Pressed))
+                    {
+                        PreviousState = CurrentState;
+                        CurrentState = GameState.Playing;
+                    
+                    }
+                    #endregion
+                    break;
+
+                case GameState.Playing:
+                    GridTileManager.SetTileSize(new Point(50, 50));
+                    GridTileManager.Update(gameTime);
+                    EntityHandler.Update(gameTime);
+                    CreepHandler.Update(gameTime);
+
+                    // TODO: Remove.
+                    #region Manual Creep Movement. Remove when done.
+                    if(KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Up)){
+                        ((Creep) CreepHandler.GetEntity(0)).ChangeMovement(Direction.North, 1);
+                    }
+
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Down))
+                    {
+                        ((Creep)CreepHandler.GetEntity(0)).ChangeMovement(Direction.South, 1);
+                    }
+
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Left))
+                    {
+                        ((Creep)CreepHandler.GetEntity(0)).ChangeMovement(Direction.West, 1);
+                    }
+
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Right))
+                    {
+                        ((Creep)CreepHandler.GetEntity(0)).ChangeMovement(Direction.East, 1);
+                    }
+                    #endregion
+
+                    // Move from playing to editing
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.P) || 
+                        (oldIS.controllers[0].Buttons.Start == ButtonState.Released && newIS.controllers[0].Buttons.Start == ButtonState.Pressed))
+                    {
+                        
+                        CreepHandler.RemoveAllEntities();
+                        GridTileManager.ResetTowers();
+
+                        GridTileManager.SetTileSize(new Point(42, 42));
+
+                        PreviousState = CurrentState;
+                        CurrentState = GameState.Editing;
+                    
+                    }
+
+                    break;
+
+                default:
+                    // Run any extra code here.
+                    break;
 
             }
-            else if (CurrentState == GameState.Editing)
-            {
-                #region Cursor Moving
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.W) || newIS.controllers[0].ThumbSticks.Left.Y > 0)
-                    CursorLocation.Move((int)Directions.Up, TileManager.GridSize);
+            #endregion
 
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.A) || newIS.controllers[0].ThumbSticks.Left.X < 0)
-                    CursorLocation.Move((int)Directions.Left, TileManager.GridSize);
-
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.S) || newIS.controllers[0].ThumbSticks.Left.Y < 0) {
-                    if (CursorLocation.GridLocation.X < TileManager.GridSize.X) {
-                        CursorLocation.Move((int)Directions.Down, TileManager.GridSize);
-                    } else {
-
-                    }
-                }
-
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.D) || newIS.controllers[0].ThumbSticks.Left.X > 0)
-                    CursorLocation.Move((int)Directions.Right, TileManager.GridSize);
-
-                #endregion
-
-                TileManager.SetTileSize(new Point(42, 42));
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Delete) || (oldIS.controllers[0].Buttons.Y == ButtonState.Released && newIS.controllers[0].Buttons.Y == ButtonState.Pressed)) {
-                    String TileTypeAtCursor = TileManager.GetTileType(CursorLocation.GridLocation);
-                    if (!TileTypeAtCursor.Equals("Tile.Grass") || !TileTypeAtCursor.Equals("Null")) {
-                        Money += TilePrices[TileTypeAtCursor];
-                        TileManager.SetTile(CursorLocation.GridLocation, new Tile(GrassTexture, (TilePosition) CursorLocation.Clone(), "Tile.Grass"));
-                    }
-                }
-
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Z) || (oldIS.controllers[0].Buttons.A == ButtonState.Released && newIS.controllers[0].Buttons.A == ButtonState.Pressed)) {
-                    if (!TileManager.IsTileFilled(CursorLocation.GridLocation)) {
-                        if (Money >= TilePrices["Tile.Tower.Turret"]) {
-                            Money -= TilePrices["Tile.Tower.Turret"];
-                            TileWithTower TurretTower = TowerFactory.CreateNewTurret(TowerPlaceholders, CursorLocation, GrassTexture);
-                            TileManager.SetTile(CursorLocation.GridLocation, TurretTower);
-                        }
-                    } else {
-                        // Tile already has something in it
-                        Console.WriteLine("Tile is already filled at: " + CursorLocation.GridLocation.ToString());
-                    }
-                }
-
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.X) || (oldIS.controllers[0].Buttons.B == ButtonState.Released && newIS.controllers[0].Buttons.B == ButtonState.Pressed)) {
-                    if (!TileManager.IsTileFilled(CursorLocation.GridLocation)) {
-                        if (Money >= TilePrices["Tile.Tower.Tower2"]) {
-                            Money -= TilePrices["Tile.Tower.Tower2"];
-                            TileWithTower TurretTower = TowerFactory.CreateNewTower2(TowerPlaceholders, CursorLocation, GrassTexture);
-                            TileManager.SetTile(CursorLocation.GridLocation, TurretTower);
-                        }
-                    } else {
-                        // Tile already has something in it
-                        Console.WriteLine("Tile is already filled at: " + CursorLocation.GridLocation.ToString());
-                    }
-                }
-
-                // We started the cheat code enterer
-                if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.OemTilde))
-                {
-                    PreviousState = CurrentState;
-                    CurrentState = GameState.CheatScreen;
-                }
-
-                
-            } else if (CurrentState == GameState.Playing){
-                GridScale = 1;
-                TileManager.Update(gameTime);
-            }
-            
+            if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.End))
+                Initialize();
 
             oldIS.Update();
 
@@ -314,48 +415,86 @@ namespace DruidDefense
         /// <summary>
         /// This is called when the game should draw itself.
         /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
-        protected override void Draw(GameTime gameTime)
+        /// <param name="time">Provides a snapshot of timing values.</param>
+        protected override void Draw(GameTime time)
         {
-            // 56, 70, 19 is the grass color
+            // 56, 70, 19 is the grass' main color
             GraphicsDevice.Clear(new Color(56, 70, 19));
 
-            // Background
-            TileManager.Draw(gameTime, canvas);
+            // Background - Displaying the tiles
+            GridTileManager.Draw(time, canvas, CurrentState == GameState.Playing);
+
+            // Foreground - Debug Information and Onscreen text.
+            canvas.Begin();
+
+            switch(CurrentState){
+
+                case GameState.Editing:
+                    // Draw the cursor.
+                    canvas.Draw(
+                        CursorImage,
+                        new Rectangle(
+                            (int)CursorLocation.GetDrawingLocation().X + Grid_Tile_Size.X / 2,
+                            (int)CursorLocation.GetDrawingLocation().Y + Grid_Tile_Size.Y / 2,
+                            CursorImage.Bounds.Width,
+                            CursorImage.Bounds.Height),
+                        new Rectangle(0, 0, 25, 27),
+                        Color.White,
+                        0,
+                        new Vector2(10, 0),
+                        SpriteEffects.None,
+                        GridScale);
+
+                    foreach (Tile tile in GridTileManager.Tiles)
+                    {
+
+                        if (tile.GetType().Equals(typeof(TileWithTower)))
+                        {
+                            Tower t = ((TileWithTower)tile).TowerObject;
+                            foreach (TilePosition turretTargetTile in t.TilesInRange)
+                            {
+                                canvas.Draw(Overlay, turretTargetTile.GetTileDrawingBounds(), Color.Pink);
+                            }
+                        }
+                    }
+
+                    #region Shop Display
+                    Vector2 Tower1Pos = new Vector2(Window.ClientBounds.Width - 50 - 70, 30);
+                    canvas.Draw(TowerPlaceholders.GetSheet(), Tower1Pos, new Rectangle(0, 0, 50, 50), Color.White);
+                    canvas.DrawString(Segoe, "Z/X", Tower1Pos + new Vector2(2, 2), Color.White);
+                    canvas.DrawString(Segoe, String.Format("{0}", TilePrices["Tile.Tower.Turret"]), Tower1Pos + new Vector2(2, 16), Color.White);
+
+                    // Money amount display
+                    Vector2 MoneySize = Segoe.MeasureString(String.Format("{0:C}", Money));
+                    canvas.DrawString(Segoe, String.Format("{0:C}", Money), new Vector2(Window.ClientBounds.Width - MoneySize.X - 10, 0), Color.White);
+                    #endregion
+                    break;
+
+                case GameState.CheatScreen:
+                    canvas.DrawString(Segoe, CheatCodeSystem.GetDisplay(), new Vector2(10, Window.ClientBounds.Height - 30), Color.White);
+                    break;
+
+                case GameState.Playing:
+
+                    // Add playing-specific code here.
+                    break;
+
+            }
 
             
 
-            // Foreground
-            canvas.Begin();
-            // canvas.DrawString(Segoe, TurretTile.Location.ToString(), new Vector2(10, 10), Color.White);
-
-            canvas.Draw(
-                CursorImage, 
-                new Rectangle(
-                    (int) CursorLocation.GetDrawingLocation().X + Grid_Tile_Size.X / 2, 
-                    (int) CursorLocation.GetDrawingLocation().Y + Grid_Tile_Size.Y / 2, 
-                    CursorImage.Bounds.Width, 
-                    CursorImage.Bounds.Height), 
-                new Rectangle(0, 0, 25, 27),
-                Color.White,
-                0,
-                new Vector2(10, 0),
-                SpriteEffects.None,
-                GridScale);
-
-            Vector2 MoneySize = Segoe.MeasureString(String.Format("{0:C}", Money));
-            canvas.DrawString(Segoe, String.Format("{0:C}", Money), new Vector2(Window.ClientBounds.Width - MoneySize.X - 10, 0), Color.White);
+            if(DebugMode)
+            {
+                // Show start and stop positions for creeps
+                canvas.Draw(Overlay, CreepStart.GetTileDrawingBounds(), Color.Green);
+                canvas.Draw(Overlay, CreepEnd.GetTileDrawingBounds(), Color.Red);
+            }
 
             canvas.End();
 
-            if (CurrentState == GameState.CheatScreen)
-            {
-                canvas.Begin();
-                canvas.DrawString(Segoe, CheatCodeSystem.ToString(), Vector2.Zero, Color.White);
-                canvas.End();
-            }
-
-            base.Draw(gameTime);
+            EntityHandler.Draw(time, canvas, (DebugMode ? Segoe : null));
+            CreepHandler.Draw(time, canvas, Segoe);
+            base.Draw(time);
         }
     }
 }

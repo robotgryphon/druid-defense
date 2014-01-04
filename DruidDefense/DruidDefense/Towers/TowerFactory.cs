@@ -9,19 +9,15 @@ using Microsoft.Xna.Framework.Graphics;
 using DruidDefense.Tiles;
 
 namespace DruidDefense.Towers {
-    public class TowerFactory {
+    public class TowerFactory
+    {
 
-        public static TileWithTower CreateNewTurret(Spritesheet Textures, TilePosition CursorLocation, Texture2D GrassTexture) {
-
-            Tower NewTurret = new Tower(120, Textures, new Rectangle(0, 0, 50, 50), new TimeSpan(0, 0, 0, 1));
-            TileWithTower TurretTower = new TileWithTower(NewTurret, GrassTexture, (TilePosition) CursorLocation.Clone(), "Tile.Tower.Turret");
-            return TurretTower;
-        }
-
-        public static TileWithTower CreateNewTower2(Spritesheet Textures, TilePosition CursorLocation, Texture2D GrassTexture) {
-
-            Tower NewTurret = new Tower(120, Textures, new Rectangle(50, 0, 50, 50), new TimeSpan(0, 0, 0, 1));
-            TileWithTower TurretTower = new TileWithTower(NewTurret, GrassTexture, (TilePosition) CursorLocation.Clone(), "Tile.Tower.Tower2");
+        public static TileWithTower CreateNewTurret(Spritesheet Textures, TilePosition CursorLocation, Texture2D GrassTexture)
+        {
+            TilePosition location = (TilePosition) CursorLocation.Clone();
+            Tower NewTurret = new Tower(location, 120, 7, Textures, new Rectangle(0, 0, 25, 19), new TimeSpan(0, 0, 0, 0, 250));
+            NewTurret.AnimationHandler.GetAnimation("Editor").GetFrame(0).Origin = new Vector2(15, 9);
+            TileWithTower TurretTower = new TileWithTower(NewTurret, GrassTexture, location, "Tile.Tower.Turret");
             return TurretTower;
         }
     }

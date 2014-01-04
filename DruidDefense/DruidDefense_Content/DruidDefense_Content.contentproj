@@ -49,13 +49,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Towers\Tiny.png">
-      <Name>Tiny</Name>
-      <Importer>TextureImporter</Importer>
-      <Processor>TextureProcessor</Processor>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="Tiles\Path-Straight.png">
       <Name>Path-Straight</Name>
       <Importer>TextureImporter</Importer>
@@ -92,8 +85,29 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Towers\TowerPlaceholders.png">
-      <Name>TowerPlaceholders</Name>
+    <Compile Include="Tiles\Grass-Bordered.png">
+      <Name>Grass-Bordered</Name>
+      <Importer>TextureImporter</Importer>
+      <Processor>TextureProcessor</Processor>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Tiles\Overlay.png">
+      <Name>Overlay</Name>
+      <Importer>TextureImporter</Importer>
+      <Processor>TextureProcessor</Processor>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Creeps\Blob.png">
+      <Name>Blob</Name>
+      <Importer>TextureImporter</Importer>
+      <Processor>TextureProcessor</Processor>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Towers\Tower-Base.png">
+      <Name>Tower-Base</Name>
       <Importer>TextureImporter</Importer>
       <Processor>TextureProcessor</Processor>
     </Compile>

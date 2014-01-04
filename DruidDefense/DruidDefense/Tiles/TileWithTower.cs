@@ -30,28 +30,19 @@ namespace DruidDefense.Tiles
             this.UnlocalizedName = UnlocalName;
         }
 
-        public override void UpdateScaling(Point NewScale)
-        {
-            base.UpdateScaling(NewScale);
-            // TowerObject.UpdateScaling(NewScale);
-        }
-
         public override void Update(GameTime time) {
 
             TowerObject.Update(time);
-
+            
             base.Update(time);
         }
 
-        public override void Draw(GameTime time, Point TileSize, SpriteBatch canvas)
+        public override void Draw(GameTime time, SpriteBatch canvas)
         {
-
-            base.Draw(time, TileSize, canvas);
+            base.Draw(time, canvas);
 
             // Now draw the tower
             TowerObject.Draw(time, canvas, this.Location);
-
-            
         }
     }
 }
