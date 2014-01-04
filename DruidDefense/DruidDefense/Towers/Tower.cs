@@ -95,10 +95,10 @@ namespace DruidDefense.Towers
         public virtual void CheckEntityInRange(TileEntity e)
         {
 
-            if (Targets.ContainsKey(e.LocalizedName))
+            if (Targets.ContainsKey(e.UnlocalizedName))
             {
                 if(TilePosition.DistanceBetween(e.Location, this.ParentTileLocation) > TileRange){
-                    Targets.Remove(e.LocalizedName);
+                    Targets.Remove(e.UnlocalizedName);
                     // Console.WriteLine("Entity {0} removed from watch list of Tower at {1}.", e.LocalizedName, ParentTileLocation);
                 }
             }
@@ -106,7 +106,7 @@ namespace DruidDefense.Towers
             {
                 if (TilePosition.DistanceBetween(e.Location, this.ParentTileLocation) <= TileRange)
                 {
-                    Targets.Add(e.LocalizedName, e);
+                    Targets.Add(e.UnlocalizedName, e);
                     if (e.GetType().Equals(typeof(Creep)) || e.GetType().Equals(typeof(BlobCreep)))
                     {
                         ((Creep)e).OnCreepDeath += this.HandleTargetDeath;
@@ -121,7 +121,7 @@ namespace DruidDefense.Towers
         {
 
             // Console.WriteLine("Creep {0} died. Removing from target listing.", sender.LocalizedName);
-            this.Targets.Remove(sender.LocalizedName);
+            this.Targets.Remove(sender.UnlocalizedName);
         }
 
         public virtual void FaceTarget(Vector2 targetLocation)

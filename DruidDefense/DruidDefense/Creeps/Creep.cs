@@ -92,7 +92,7 @@ namespace DruidDefense.Creeps
 
             NextDirectionToGo = Direction.South;
 
-            LocalizedName = "Entity.TileEntity.Creep";
+            UnlocalizedName = "Entity.TileEntity.Creep";
 
             EntityType = Entities.Enemy;
 
@@ -268,7 +268,7 @@ namespace DruidDefense.Creeps
 
         public override string GetDebugString()
         {
-            return String.Format("{1}", this.LocalizedName, this.Health);
+            return String.Format("{1}", this.UnlocalizedName, this.Health);
         }
     }
 }

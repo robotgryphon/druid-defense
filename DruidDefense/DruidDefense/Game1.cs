@@ -216,7 +216,7 @@ namespace DruidDefense
 
 
             BlobCreep NewCreep = new BlobCreep(new Spritesheet(BlobCreepSheet), (TilePosition) CreepStart.Clone());
-            NewCreep.LocalizedName = "BlobCreep." + CreepHandler.Entities.Count();
+            NewCreep.UnlocalizedName = "BlobCreep." + CreepHandler.Entities.Count();
             NewCreep.MovementDirection = RandomDirectionForCreep;
             NewCreep.SpriteSystem.GetAnimation("Still").GetFrame(0).Coloration = new Color(Randomizer.Next(0, 255), Randomizer.Next(0, 255), Randomizer.Next(0, 255));
 
