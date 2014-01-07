@@ -34,7 +34,7 @@ namespace DruidDefense.Creeps
             this.SpriteSystem.GetAnimation("Still").SetNextInQueue("Still");
             this.SpriteSystem.SwitchToAnimation("Still");
             this.Position = new Vector2(startPosition.GridManager.TileSize.X / 2, startPosition.GridManager.TileSize.Y / 2);
-            this.Speed = new Vector2(1f, 1f);
+            this.Speed = new Vector2(3f, 3f);
             this.MovementDirection = Direction.North;
         }
     }

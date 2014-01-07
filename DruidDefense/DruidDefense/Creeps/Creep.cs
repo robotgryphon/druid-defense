@@ -77,27 +77,22 @@ namespace DruidDefense.Creeps
 
                 if (((Location.GridManager.TileSize.X / 2) - Position.X) <= (Speed.X / 2))
                 {
-                    Console.WriteLine("Near enough on X axis.");
                     if (((Location.GridManager.TileSize.Y / 2) - Position.Y) <= (Speed.Y / 2))
                     {
-                        Console.WriteLine("Near enough to center.");
+                        if (this.OnGoalAchieved != null)
+                        {
+                            OnGoalAchieved(this, new CreepMovementArguments((TilePosition)this.Location.Clone()));
+                        }
                         return true;
                     }
                 }
-
-                /*
-                if (this.OnGoalAchieved != null)
-                {
-                    OnGoalAchieved(this, new CreepMovementArguments((TilePosition) this.Location.Clone()));
-                }
-                */
                 
             }
 
             return false;
         }
 
-        public void Move(Direction moveDirection)
+        public void Move(Direction moveDirection, Vector2 Speed)
         {
 
             switch (MovementDirection)
@@ -148,7 +143,7 @@ namespace DruidDefense.Creeps
         public override void Update(GameTime time)
         {
 
-            Move(MovementDirection);
+            Move(MovementDirection, Speed);
 
             
             // If the creep is still in its tile.
@@ -157,7 +152,7 @@ namespace DruidDefense.Creeps
 
                 Rectangle CreepTileBounds = Location.GetTileDrawingBounds();
 
-                Vector2 CheckLocation =Position + Location.GetDrawingLocation();
+                Vector2 CheckLocation = Position + Location.GetDrawingLocation();
 
                 Direction CreepDirection = LocationHelper.CheckBounds(CheckLocation, CreepTileBounds);
 
@@ -196,11 +191,9 @@ namespace DruidDefense.Creeps
                             this.MovementDirection = Direction.North;
                             break;
 
-                        case Direction.West:
-                            // How to test if creep is fully within a tile?
-                            // We have a position that points to the center of a creep and its size
-                            // We have the tile size
                             
+                        case Direction.West:
+                            // We are to the left of the goal                            
                             if (FullyInside2.Height == HitBox.Height)
                             {
                                 MovementDirection = Direction.East;
@@ -210,6 +203,17 @@ namespace DruidDefense.Creeps
 
                                 Point GoalCenter = Goal.GetTileDrawingBounds().Center;
                                 Direction DirToCenter = LocationHelper.CheckBounds(this.Position, new Rectangle(GoalCenter.X, GoalCenter.Y, 1, 1));
+
+                                if ((Location.GetDrawingLocation() + Position).Y > GoalCenter.Y)
+                                {
+                                    MovementDirection = Direction.North;
+                                }
+                                else
+                                {
+                                    MovementDirection = Direction.South;
+                                }
+                                /*
+                                Console.WriteLine(DirToCenter);
 
                                 switch (DirToCenter)
                                 {
@@ -225,6 +229,7 @@ namespace DruidDefense.Creeps
                                         this.MovementDirection = Direction.North;
                                         break;
                                 }
+                                 * */
                             }
                             break;
 
@@ -238,6 +243,17 @@ namespace DruidDefense.Creeps
                                 Point GoalCenter = Goal.GetTileDrawingBounds().Center;
                                 Direction DirToCenter = LocationHelper.CheckBounds(this.Position, new Rectangle(GoalCenter.X, GoalCenter.Y, 1, 1));
 
+                                if ((Location.GetDrawingLocation() + Position).Y > GoalCenter.Y)
+                                {
+                                    MovementDirection = Direction.North;
+                                }
+                                else
+                                {
+                                    MovementDirection = Direction.South;
+                                }
+                                /*
+                                Console.WriteLine(DirToCenter);
+
                                 switch (DirToCenter)
                                 {
                                     case Direction.NorthWest:
@@ -252,7 +268,7 @@ namespace DruidDefense.Creeps
                                         this.MovementDirection = Direction.North;
                                         break;
                                 }
-
+                                */
 
                             }
                             break;

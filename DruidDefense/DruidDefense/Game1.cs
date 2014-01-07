@@ -79,7 +79,7 @@ namespace DruidDefense
         TimeSpan TimeSinceControllerMove;
 
         List<TilePosition> CreepSpawns;
-        TilePosition CreepEnd;
+        List<TilePosition> CreepGoals;
 
         public static Random Randomizer;
 
@@ -143,7 +143,7 @@ namespace DruidDefense
 
             // Give the player some money to work with.
             Money = 300f;
-            Life = 25f;
+            Life = 5f;
 
             // Start the game proper, in editing mode.
             PreviousState = GameState.Loading;
@@ -160,14 +160,26 @@ namespace DruidDefense
             ControllerMoveDelay = new TimeSpan(0, 0, 0, 0, 500);
             TimeSinceControllerMove = new TimeSpan();
 
-            CreepHandler = new Creeps.CreepHandler(1);
-            CreepHandler.SpawnDelay = new TimeSpan(0, 0, 0, 0, 250);
+            CreepHandler = new Creeps.CreepHandler(1000);
+            CreepHandler.SpawnDelay = new TimeSpan(0, 0, 0, 0, 1);
 
-            CreepEnd = new TilePosition(new Point(6, GridTileManager.GridSize.Y - 5), GridTileManager);
+            CreepGoals = new List<TilePosition>();
+            CreepGoals.Add(new TilePosition(new Point(6, 6), GridTileManager));
 
             CreepSpawns = new List<TilePosition>();
-            CreepSpawns.Add(new TilePosition(new Point(3, 10), GridTileManager));
+            // Above
+            CreepSpawns.Add(new TilePosition(new Point(3, 3), GridTileManager));
+            CreepSpawns.Add(new TilePosition(new Point(6, 3), GridTileManager));
+            CreepSpawns.Add(new TilePosition(new Point(9, 3), GridTileManager));
 
+            // On-Level
+            CreepSpawns.Add(new TilePosition(new Point(3, 6), GridTileManager));
+            CreepSpawns.Add(new TilePosition(new Point(9, 6), GridTileManager));
+
+            // Below
+            CreepSpawns.Add(new TilePosition(new Point(3, 9), GridTileManager));
+            CreepSpawns.Add(new TilePosition(new Point(6, 9), GridTileManager));
+            CreepSpawns.Add(new TilePosition(new Point(9, 9), GridTileManager));
             CreepHandler.OnCreepSpawnTimeout += HandleCreepSpawnTimeout;
         }
 
@@ -208,17 +220,15 @@ namespace DruidDefense
 
         public void HandleCreepSpawnTimeout(CreepHandler handler, EventArgs args)
         {
-            foreach (TilePosition spawn in CreepSpawns)
-            {
-                BlobCreep NewCreep = new BlobCreep(new Spritesheet(BlobCreepSheet), (TilePosition) spawn.Clone());
+
+                BlobCreep NewCreep = new BlobCreep(new Spritesheet(BlobCreepSheet), (TilePosition) CreepSpawns[Randomizer.Next(0, CreepSpawns.Count())].Clone());
                 NewCreep.UnlocalizedName = "BlobCreep." + CreepHandler.Entities.Count();
                 NewCreep.MovementDirection = Direction.South;
-                NewCreep.Goal = (TilePosition) CreepEnd.Clone();
+                NewCreep.Goal = (TilePosition)CreepGoals[Randomizer.Next(0, CreepGoals.Count - 1)].Clone();
 
                 NewCreep.OnGoalAchieved += HandleCreepGoalAchieved;
 
                 CreepHandler.AddCreep(NewCreep, GridTileManager);
-            }
         }
 
         /// <summary>
@@ -505,17 +515,16 @@ namespace DruidDefense
             {
                 // Show start and stop positions for creeps
                 foreach (TilePosition spawn in CreepSpawns)
-                {
                     canvas.Draw(Overlay, spawn.GetTileDrawingBounds(), Color.Green);
-                }
 
-                canvas.Draw(Overlay, CreepEnd.GetTileDrawingBounds(), Color.Red);
+                foreach(TilePosition goal in CreepGoals)
+                    canvas.Draw(Overlay, goal.GetTileDrawingBounds(), Color.Red);
             }
 
             canvas.End();
 
             EntityHandler.Draw(time, canvas, (DebugMode ? Segoe : null));
-            CreepHandler.Draw(time, canvas, Segoe);
+            CreepHandler.Draw(time, canvas, Segoe, Overlay);
             base.Draw(time);
         }
     }

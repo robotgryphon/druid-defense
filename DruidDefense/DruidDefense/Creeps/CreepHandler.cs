@@ -93,7 +93,6 @@ namespace DruidDefense.Creeps
             Direction SideLeft = (Direction) moveArgs.Data["side"];
 
             sender.Location.Reposition(SideLeft);
-            Console.WriteLine("{0} vs. {1}", sender.Location.GridLocation, sender.Location.GridManager.GridSize);
             switch (SideLeft)
             {
                 case Direction.North:
