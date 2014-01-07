@@ -1,8 +1,5 @@
 ﻿
 	THINGS TO DO LIST
 
-	1)	Tower creep watching management.
-
-	2)	Implement creep movement algorithm.
-
-	3)	Sound.
+	Finish implementing creep movement algorithm.
+	Sound.

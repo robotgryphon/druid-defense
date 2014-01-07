@@ -106,13 +106,16 @@ namespace DruidDefense.Towers
             {
                 if (TilePosition.DistanceBetween(e.Location, this.ParentTileLocation) <= TileRange)
                 {
-                    Targets.Add(e.UnlocalizedName, e);
-                    if (e.GetType().Equals(typeof(Creep)) || e.GetType().Equals(typeof(BlobCreep)))
+                    if (Targets.Count < 10)
                     {
-                        ((Creep)e).OnCreepDeath += this.HandleTargetDeath;
-                    }
+                        Targets.Add(e.UnlocalizedName, e);
+                        if (e.GetType().Equals(typeof(Creep)) || e.GetType().Equals(typeof(BlobCreep)))
+                        {
+                            ((Creep)e).OnCreepDeath += this.HandleTargetDeath;
+                        }
 
-                    // Console.WriteLine("Entity {0} added to watch list of Tower at {1}.", e.LocalizedName, ParentTileLocation);
+                        // Console.WriteLine("Entity {0} added to watch list of Tower at {1}.", e.LocalizedName, ParentTileLocation)
+                    }
                 }
             }
         }
@@ -147,9 +150,6 @@ namespace DruidDefense.Towers
                         this.TilesInRange.Add(possibleTileTarget);
                 }
             }
-
-            // Range finished updating.
-            if (false) { }
         }
 
         public virtual void Update(GameTime time) {
@@ -160,7 +160,7 @@ namespace DruidDefense.Towers
             if (this.Targets.Count() > 0)
             {
                 TileEntity te = this.Targets.Values[0];
-                FaceTarget(te.Position + te.Location.GetDrawingLocation());
+                FaceTarget(new Vector2(te.HitBox.Center.X, te.HitBox.Center.Y));
             }
 
             if (TimeSinceReload >= ReloadSpeed) {

@@ -54,6 +54,7 @@ namespace DruidDefense
 
         Spritesheet TowerPlaceholders;
         Texture2D GrassTexture;
+        Texture2D HeartTexture;
 
         // Tracks where the cursor is at over the board
         public TilePosition CursorLocation;
@@ -68,9 +69,7 @@ namespace DruidDefense
         GameState CurrentState;
 
         float Money;
-        Boolean NukeMode;
-
-        float GridScale;
+        float Life;
 
         Dictionary<String, float> TilePrices;
 
@@ -79,7 +78,7 @@ namespace DruidDefense
         TimeSpan ControllerMoveDelay;
         TimeSpan TimeSinceControllerMove;
 
-        TilePosition CreepStart;
+        List<TilePosition> CreepSpawns;
         TilePosition CreepEnd;
 
         public static Random Randomizer;
@@ -144,15 +143,11 @@ namespace DruidDefense
 
             // Give the player some money to work with.
             Money = 300f;
-
-            // Set NukeMode to false.
-            NukeMode = false;
+            Life = 25f;
 
             // Start the game proper, in editing mode.
             PreviousState = GameState.Loading;
             CurrentState = GameState.Editing;
-
-            GridScale = 42 / 50;
 
             TilePrices = new Dictionary<string, float>();
             TilePrices.Add("Tile.Grass", 0);
@@ -160,18 +155,18 @@ namespace DruidDefense
             TilePrices.Add("Tile.Tower.Tower2", 10);
             TilePrices.Add("Tile.Tower.Tower3", 25);
 
-            DebugMode = false;
+            DebugMode = true;
 
             ControllerMoveDelay = new TimeSpan(0, 0, 0, 0, 500);
             TimeSinceControllerMove = new TimeSpan();
 
-            CreepHandler = new Creeps.CreepHandler(50);
-            CreepHandler.SpawnDelay = new TimeSpan(0, 0, 2);
+            CreepHandler = new Creeps.CreepHandler(1);
+            CreepHandler.SpawnDelay = new TimeSpan(0, 0, 0, 0, 250);
 
-            //new Point(Randomizer.Next(0, GridTileManager.GridSize.X), 0)
-            CreepStart = new TilePosition(new Point(3, 0), GridTileManager);
+            CreepEnd = new TilePosition(new Point(6, GridTileManager.GridSize.Y - 5), GridTileManager);
 
-            CreepEnd = new TilePosition(new Point(Randomizer.Next(0, GridTileManager.GridSize.X), GridTileManager.GridSize.Y - 1), GridTileManager);
+            CreepSpawns = new List<TilePosition>();
+            CreepSpawns.Add(new TilePosition(new Point(3, 10), GridTileManager));
 
             CreepHandler.OnCreepSpawnTimeout += HandleCreepSpawnTimeout;
         }
@@ -196,6 +191,9 @@ namespace DruidDefense
             // Load in a grass texture.
             GrassTexture = Content.Load<Texture2D>("Tiles/Grass-Bordered");
 
+            // Load in the heart for life
+            HeartTexture = Content.Load<Texture2D>("Images/Heart");
+
             TowerPlaceholders = new Spritesheet(Content.Load<Texture2D>("Towers/Tower-Base"));
 
             CursorImage = Content.Load<Texture2D>("Images/Pointer");
@@ -210,17 +208,17 @@ namespace DruidDefense
 
         public void HandleCreepSpawnTimeout(CreepHandler handler, EventArgs args)
         {
+            foreach (TilePosition spawn in CreepSpawns)
+            {
+                BlobCreep NewCreep = new BlobCreep(new Spritesheet(BlobCreepSheet), (TilePosition) spawn.Clone());
+                NewCreep.UnlocalizedName = "BlobCreep." + CreepHandler.Entities.Count();
+                NewCreep.MovementDirection = Direction.South;
+                NewCreep.Goal = (TilePosition) CreepEnd.Clone();
 
+                NewCreep.OnGoalAchieved += HandleCreepGoalAchieved;
 
-            Direction RandomDirectionForCreep = PossibleDirections[Randomizer.Next(0, PossibleDirections.Count() - 1)];
-
-
-            BlobCreep NewCreep = new BlobCreep(new Spritesheet(BlobCreepSheet), (TilePosition) CreepStart.Clone());
-            NewCreep.UnlocalizedName = "BlobCreep." + CreepHandler.Entities.Count();
-            NewCreep.MovementDirection = RandomDirectionForCreep;
-            NewCreep.SpriteSystem.GetAnimation("Still").GetFrame(0).Coloration = new Color(Randomizer.Next(0, 255), Randomizer.Next(0, 255), Randomizer.Next(0, 255));
-
-            CreepHandler.AddCreep(NewCreep, GridTileManager);
+                CreepHandler.AddCreep(NewCreep, GridTileManager);
+            }
         }
 
         /// <summary>
@@ -242,18 +240,19 @@ namespace DruidDefense
             {
                 Money = 1000000;
             }
-            else if(cheatcode.ToLower().Equals("immune"))
+            else
             {
-                Console.WriteLine("Immunity activated.");
-            }
-            else if (cheatcode.ToLower().Equals("orbitnuke"))
-            {
-                // Oh god, nuke all the creeps
-                NukeMode = !NukeMode;
+                // Bad cheat code
             }
 
             CurrentState = PreviousState;
             PreviousState = GameState.CheatScreen;
+        }
+
+        public void HandleCreepGoalAchieved(Creep sender, EventArgs args)
+        {
+            this.Life -= 1;
+            sender.Damage(1000);
         }
 
         /// <summary>
@@ -299,16 +298,16 @@ namespace DruidDefense
                 case GameState.Editing:
                     #region Cursor Moving
                     if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.W) || newIS.controllers[0].ThumbSticks.Left.Y > 0)
-                        CursorLocation.Move(Direction.North);
+                        CursorLocation.Reposition(Direction.North);
 
                     if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.A) || newIS.controllers[0].ThumbSticks.Left.X < 0)
-                        CursorLocation.Move(Direction.West);
+                        CursorLocation.Reposition(Direction.West);
 
                     if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.S) || newIS.controllers[0].ThumbSticks.Left.Y < 0)
-                        CursorLocation.Move(Direction.South);
+                        CursorLocation.Reposition(Direction.South);
 
                     if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.D) || newIS.controllers[0].ThumbSticks.Left.X > 0)
-                        CursorLocation.Move(Direction.East);
+                        CursorLocation.Reposition(Direction.East);
 
                     #endregion
 
@@ -357,28 +356,6 @@ namespace DruidDefense
                     GridTileManager.Update(gameTime);
                     EntityHandler.Update(gameTime);
                     CreepHandler.Update(gameTime);
-
-                    // TODO: Remove.
-                    #region Manual Creep Movement. Remove when done.
-                    if(KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Up)){
-                        ((Creep) CreepHandler.GetEntity(0)).ChangeMovement(Direction.North, 1);
-                    }
-
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Down))
-                    {
-                        ((Creep)CreepHandler.GetEntity(0)).ChangeMovement(Direction.South, 1);
-                    }
-
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Left))
-                    {
-                        ((Creep)CreepHandler.GetEntity(0)).ChangeMovement(Direction.West, 1);
-                    }
-
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Right))
-                    {
-                        ((Creep)CreepHandler.GetEntity(0)).ChangeMovement(Direction.East, 1);
-                    }
-                    #endregion
 
                     // Move from playing to editing
                     if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.P) || 
@@ -443,7 +420,7 @@ namespace DruidDefense
                         0,
                         new Vector2(10, 0),
                         SpriteEffects.None,
-                        GridScale);
+                        (42 / 50));
 
                     foreach (Tile tile in GridTileManager.Tiles)
                     {
@@ -459,14 +436,38 @@ namespace DruidDefense
                     }
 
                     #region Shop Display
-                    Vector2 Tower1Pos = new Vector2(Window.ClientBounds.Width - 50 - 70, 30);
-                    canvas.Draw(TowerPlaceholders.GetSheet(), Tower1Pos, new Rectangle(0, 0, 50, 50), Color.White);
-                    canvas.DrawString(Segoe, "Z/X", Tower1Pos + new Vector2(2, 2), Color.White);
-                    canvas.DrawString(Segoe, String.Format("{0}", TilePrices["Tile.Tower.Turret"]), Tower1Pos + new Vector2(2, 16), Color.White);
-
                     // Money amount display
                     Vector2 MoneySize = Segoe.MeasureString(String.Format("{0:C}", Money));
                     canvas.DrawString(Segoe, String.Format("{0:C}", Money), new Vector2(Window.ClientBounds.Width - MoneySize.X - 10, 0), Color.White);
+
+                    // Display tower 1
+                    Rectangle Tower1Pos = new Rectangle(Window.ClientBounds.Width - 95, 11 + GridTileManager.TileSize.Y, 25, 19);
+                    canvas.Draw(
+                        TowerPlaceholders.GetSheet(), 
+                        Tower1Pos, 
+                        new Rectangle(0, 0, 25, 19), 
+                        Color.White, 
+                        MathHelper.ToRadians(90), 
+                        Vector2.Zero, 
+                        SpriteEffects.None, 
+                        1f);
+
+                    canvas.DrawString(Segoe, String.Format("Z/X ({0})", TilePrices["Tile.Tower.Turret"]), new Vector2(Tower1Pos.X + 2, Tower1Pos.Y - 11), Color.White);
+
+                    
+                    // Display tower 2
+                    Rectangle Tower2Pos = new Rectangle(Window.ClientBounds.Width - 95, 11 + (GridTileManager.TileSize.Y * 2), 25, 19);
+                    canvas.Draw(
+                        TowerPlaceholders.GetSheet(), 
+                        Tower2Pos, 
+                        new Rectangle(0, 0, 25, 19), 
+                        Color.LightBlue, 
+                        MathHelper.ToRadians(90), 
+                        Vector2.Zero, 
+                        SpriteEffects.None, 
+                        1f);
+
+                    canvas.DrawString(Segoe, String.Format("Z/X ({0})", TilePrices["Tile.Tower.Turret"]), new Vector2(Tower2Pos.X + 2, Tower2Pos.Y - 11), Color.White);
                     #endregion
                     break;
 
@@ -476,7 +477,24 @@ namespace DruidDefense
 
                 case GameState.Playing:
 
-                    // Add playing-specific code here.
+                    Vector2 LifePosition = new Vector2(Window.ClientBounds.Width - 60, Window.ClientBounds.Height - 60);
+                    canvas.Draw(HeartTexture, new Rectangle((int) LifePosition.X, (int) LifePosition.Y, 40, 40), Color.White);
+
+                    Vector2 LifeSize = Segoe.MeasureString(Life.ToString());
+
+                    Color LifeColor = Color.White;
+                    if (Life > 35) LifeColor = Color.LimeGreen;
+                    if (Life > 15 && Life <= 35) LifeColor = Color.Yellow;
+                    if (Life > 0 && Life <= 15) LifeColor = Color.Salmon;
+                    canvas.DrawString(Segoe, 
+                        Life.ToString(), 
+                        new Vector2(LifePosition.X + 20, LifePosition.Y + 20), 
+                        LifeColor, 
+                        0, 
+                        new Vector2(LifeSize.X / 2, LifeSize.Y / 2),
+                        1f,
+                        SpriteEffects.None,
+                        1f);
                     break;
 
             }
@@ -486,7 +504,11 @@ namespace DruidDefense
             if(DebugMode)
             {
                 // Show start and stop positions for creeps
-                canvas.Draw(Overlay, CreepStart.GetTileDrawingBounds(), Color.Green);
+                foreach (TilePosition spawn in CreepSpawns)
+                {
+                    canvas.Draw(Overlay, spawn.GetTileDrawingBounds(), Color.Green);
+                }
+
                 canvas.Draw(Overlay, CreepEnd.GetTileDrawingBounds(), Color.Red);
             }
 

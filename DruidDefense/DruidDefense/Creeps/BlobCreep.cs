@@ -18,11 +18,23 @@ namespace DruidDefense.Creeps
             :base(sheet, startPosition)
         {
 
-            this.CreateSpriteArea("Still", new Rectangle(0, 0, 30, 30));
+            Frame NewFrame = new Frame(
+                new Rectangle(0, 0, 30, 30),
+                Vector2.Zero,
+                1f,
+                0f,
+                new Vector2(Size.X / 2, Size.Y / 2),
+                1f);
+
+            NewFrame.Coloration = new Color(Game1.Randomizer.Next(0, 255), Game1.Randomizer.Next(0, 255), Game1.Randomizer.Next(0, 255));
+
+            SpriteSystem.AddAnimation("Still").SetNextInQueue("Still");
+            SpriteSystem.GetAnimation("Still").AddFrame(NewFrame);
+
             this.SpriteSystem.GetAnimation("Still").SetNextInQueue("Still");
             this.SpriteSystem.SwitchToAnimation("Still");
             this.Position = new Vector2(startPosition.GridManager.TileSize.X / 2, startPosition.GridManager.TileSize.Y / 2);
-            this.Speed = new Vector2(0.5f, 0.5f);
+            this.Speed = new Vector2(1f, 1f);
             this.MovementDirection = Direction.North;
         }
     }

@@ -91,43 +91,42 @@ namespace DruidDefense.Creeps
             // Use the LocationHelper's Direction enum to figure out what to do to move the creep to the new tile.
             CreepMovementArguments moveArgs = (CreepMovementArguments) args;
             Direction SideLeft = (Direction) moveArgs.Data["side"];
-            
-            // Console.WriteLine(String.Format("Creep on the move {0}: from {1}, since creep is at: {2}", SideLeft, sender.Location.GridLocation, sender.Position));
 
-            Direction nd = sender.SetNextRandomDirection();
-            // Console.WriteLine("Creep decided to go " + nd + " from here.");
-
-            sender.NextDirectionToGo = nd;
-
+            sender.Location.Reposition(SideLeft);
+            Console.WriteLine("{0} vs. {1}", sender.Location.GridLocation, sender.Location.GridManager.GridSize);
             switch (SideLeft)
             {
                 case Direction.North:
-                    sender.Location.Move(Direction.North);
                     if (sender.Location.GridLocation.Y >= 0)
                         sender.Position.Y = sender.Location.GridManager.TileSize.Y - 1;
                     break;
 
                 case Direction.South:
-                    sender.Location.Move(Direction.South);
-                    if (sender.Location.GridLocation.Y < sender.Location.GridManager.GridSize.Y)
+                    if (sender.Location.GridLocation.Y <= sender.Location.GridManager.GridSize.Y)
                         sender.Position.Y = 1;  
                     break;
 
                 case Direction.West:
-                    sender.Location.Move(Direction.West);
                     if (sender.Location.GridLocation.X >= 0)
                         sender.Position.X = sender.Location.GridManager.TileSize.X - 1;
                     break;
 
                 case Direction.East:
-                    sender.Location.Move(Direction.East);
-                    if (sender.Location.GridLocation.X < sender.Location.GridManager.GridSize.X)
+                    if (sender.Location.GridLocation.X <= sender.Location.GridManager.GridSize.X)
                         sender.Position.X = 1;
                     break;
             }
+
+            sender.IsGoalAchieved();
         }
 
         public override void Draw(GameTime time, SpriteBatch canvas, SpriteFont debugFont)
+        {
+
+            this.Draw(time, canvas, debugFont, null);
+        }
+
+        public void Draw(GameTime time, SpriteBatch canvas, SpriteFont debugFont, Texture2D debugSkin)
         {
 
             canvas.Begin();
@@ -148,7 +147,17 @@ namespace DruidDefense.Creeps
             foreach (Entity entity in Entities)
             {
                 if (entity != null && entity.alive)
-                    entity.Draw(time, canvas);
+                {
+                    if (debugSkin != null)
+                    {
+                        entity.Draw(time, canvas, debugSkin);
+                    }
+                    else
+                    {
+                        entity.Draw(time, canvas);
+                    }
+
+                }
             }
 
             canvas.End();

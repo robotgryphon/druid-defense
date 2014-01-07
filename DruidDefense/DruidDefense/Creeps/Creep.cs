@@ -14,6 +14,312 @@ using Ostenvighx.Framework.Xna.Entities;
 namespace DruidDefense.Creeps
 {
 
+    public class Creep : TileEntity, ICloneable 
+    {
+
+        public delegate void CreepEvent(Creep sender, EventArgs arguments);
+
+        public event CreepEvent OnTileBoundaryOverlap;
+
+        public event CreepEvent OnCreepDeath;
+
+        public event CreepEvent OnGoalAchieved;
+
+        /// <summary>
+        /// The tile the creep is trying to get to.
+        /// </summary>
+        public TilePosition Goal;
+
+        /// <summary>
+        /// The horizontal and vertical movement speeds for this creep.
+        /// </summary>
+        public Vector2 Speed;
+
+        /// <summary>
+        /// The direction the creep is headed.
+        /// </summary>
+        public Direction MovementDirection;
+
+        protected float MovementLeft;
+
+        protected float Health;
+
+        public Creep(Spritesheet sheet, TilePosition startPosition) : this(sheet, startPosition, 100f) { }
+
+        /// <summary>
+        /// Create a new creep entity.
+        /// </summary>
+        public Creep(Spritesheet sheet, TilePosition startPosition, float health) : base(sheet, startPosition) {
+            Speed = new Vector2(1f, 1f);
+
+            // X = Left/Right, Y = Up/Down
+            MovementDirection = Direction.South;
+
+            UnlocalizedName = "Entity.TileEntity.Creep";
+
+            EntityType = Entities.Enemy;
+
+            base.RecalculateHitbox();
+
+            alive = true;
+
+            MovementLeft = 1;
+
+            this.Health = health;
+
+        }
+
+        public Boolean IsGoalAchieved()
+        {
+            if(this.Location.Equals(Goal)){
+
+                
+
+                if (((Location.GridManager.TileSize.X / 2) - Position.X) <= (Speed.X / 2))
+                {
+                    Console.WriteLine("Near enough on X axis.");
+                    if (((Location.GridManager.TileSize.Y / 2) - Position.Y) <= (Speed.Y / 2))
+                    {
+                        Console.WriteLine("Near enough to center.");
+                        return true;
+                    }
+                }
+
+                /*
+                if (this.OnGoalAchieved != null)
+                {
+                    OnGoalAchieved(this, new CreepMovementArguments((TilePosition) this.Location.Clone()));
+                }
+                */
+                
+            }
+
+            return false;
+        }
+
+        public void Move(Direction moveDirection)
+        {
+
+            switch (MovementDirection)
+            {
+                case Direction.North:
+                    if (Location.GridLocation.Y >= 0)
+                    {
+                        Position.Y -= Speed.Y;
+                    }
+                    break;
+
+                case Direction.South:
+                    if (Location.GridLocation.Y <= Location.GridManager.GridSize.Y)
+                    {
+                        Position.Y += Speed.Y;
+                    }
+
+                    break;
+
+                case Direction.West:
+                    if (Location.GridLocation.X >= 0)
+                    {
+                        Position.X -= Speed.X;
+                    }
+                    break;
+
+                case Direction.East:
+                    if (Location.GridLocation.X <= Location.GridManager.GridSize.X - 1)
+                    {
+                        Position.X += Speed.X;
+                    }
+
+                    break;
+            }
+        }
+
+        public virtual void Damage(float amount)
+        {
+            this.Health -= amount;
+            if (Health <= 0)
+            {
+                this.alive = false;
+                if(this.OnCreepDeath != null)
+                    OnCreepDeath(this, EventArgs.Empty);
+            }
+        }
+
+        public override void Update(GameTime time)
+        {
+
+            Move(MovementDirection);
+
+            
+            // If the creep is still in its tile.
+            if (!IsGoalAchieved())
+            {
+
+                Rectangle CreepTileBounds = Location.GetTileDrawingBounds();
+
+                Vector2 CheckLocation =Position + Location.GetDrawingLocation();
+
+                Direction CreepDirection = LocationHelper.CheckBounds(CheckLocation, CreepTileBounds);
+
+                if (CreepDirection != Direction.Inside)
+                {
+                    // If the creep left its tile (outside of the tile boundaries)
+                    if (this.OnTileBoundaryOverlap != null)
+                    {
+                        CreepMovementArguments moveArgs = new CreepMovementArguments((TilePosition)Location.Clone());
+                        moveArgs.AddData("side", CreepDirection);
+                        OnTileBoundaryOverlap(this, moveArgs);
+                    }
+                }
+                else
+                {
+
+                    #region Determining direction to move
+                    Direction RelationToGoal = LocationHelper.CheckBounds(this.Location.GetDrawingLocation() + Position, Goal.GetTileDrawingBounds());
+
+
+                    // Determine if the creep is fully inside its tile yet
+                    Rectangle FullyInside = Rectangle.Intersect(this.HitBox, this.Location.GetTileDrawingBounds());
+                    Rectangle FullyInside2 = new Rectangle(0, 0, FullyInside.Width, FullyInside.Height);
+
+                    switch (RelationToGoal)
+                    {
+                        case Direction.NorthWest:
+                        case Direction.North:
+                        case Direction.NorthEast:
+                            this.MovementDirection = Direction.South;
+                            break;
+
+                        case Direction.SouthWest:
+                        case Direction.South:
+                        case Direction.SouthEast:
+                            this.MovementDirection = Direction.North;
+                            break;
+
+                        case Direction.West:
+                            // How to test if creep is fully within a tile?
+                            // We have a position that points to the center of a creep and its size
+                            // We have the tile size
+                            
+                            if (FullyInside2.Height == HitBox.Height)
+                            {
+                                MovementDirection = Direction.East;
+                            }
+                            else
+                            {
+
+                                Point GoalCenter = Goal.GetTileDrawingBounds().Center;
+                                Direction DirToCenter = LocationHelper.CheckBounds(this.Position, new Rectangle(GoalCenter.X, GoalCenter.Y, 1, 1));
+
+                                switch (DirToCenter)
+                                {
+                                    case Direction.NorthWest:
+                                    case Direction.North:
+                                    case Direction.NorthEast:
+                                        this.MovementDirection = Direction.South;
+                                        break;
+
+                                    case Direction.SouthWest:
+                                    case Direction.South:
+                                    case Direction.SouthEast:
+                                        this.MovementDirection = Direction.North;
+                                        break;
+                                }
+                            }
+                            break;
+
+                        case Direction.East:
+                            if (FullyInside2.Height == HitBox.Height)
+                            {
+                                MovementDirection = Direction.West;
+                            }
+                            else
+                            {
+                                Point GoalCenter = Goal.GetTileDrawingBounds().Center;
+                                Direction DirToCenter = LocationHelper.CheckBounds(this.Position, new Rectangle(GoalCenter.X, GoalCenter.Y, 1, 1));
+
+                                switch (DirToCenter)
+                                {
+                                    case Direction.NorthWest:
+                                    case Direction.North:
+                                    case Direction.NorthEast:
+                                        this.MovementDirection = Direction.South;
+                                        break;
+
+                                    case Direction.SouthWest:
+                                    case Direction.South:
+                                    case Direction.SouthEast:
+                                        this.MovementDirection = Direction.North;
+                                        break;
+                                }
+
+
+                            }
+                            break;
+
+                        case Direction.Inside:
+                            // Flail. Where the heck should we go?
+                            if(this.OnGoalAchieved != null)
+                                OnGoalAchieved(this, new CreepMovementArguments((TilePosition)this.Location.Clone()));
+                            break;
+
+                        default:
+                            Console.WriteLine(RelationToGoal);
+                            break;
+                    }
+
+
+                }
+                #endregion
+
+                
+            }
+
+            base.Update(time);
+        }
+
+        public override void Draw(GameTime time, SpriteBatch canvas)
+        {
+            base.Draw(time, canvas, Location.GetDrawingLocation() + Position);
+        }
+
+        public override void Draw(GameTime time, SpriteBatch canvas, Texture2D debugSkin)
+        {
+            base.Draw(time, canvas, Location.GetDrawingLocation() + Position);
+
+            if (debugSkin != null)
+            {
+                canvas.Draw(
+                    debugSkin, 
+                    new Rectangle(
+                        (int) (HitBox.X), 
+                        (int) (HitBox.Y), 
+                        HitBox.Width, 
+                        HitBox.Height), 
+                    Color.Red); 
+            }
+        }
+
+        public override string ToString()
+        {
+            return "Entity.TileEntity.Creep: " + this.Location.ToString();
+        }
+
+        public override object Clone() {
+
+            Creep NewCreep = new Creep((Spritesheet) this.Sprites.Clone(), (TilePosition) this.Location.Clone());
+
+            NewCreep.SpriteSystem = (AnimationSystem) SpriteSystem.Clone();
+
+            return NewCreep;
+        }
+
+        public override string GetDebugString()
+        {
+            return this.Health.ToString();
+        }
+    }
+
     public class CreepMovementArguments : EventArgs
     {
 
@@ -21,7 +327,7 @@ namespace DruidDefense.Creeps
         public Dictionary<string, object> Data { get; protected set; }
         public DateTime Timestamp { get; protected set; }
 
-        
+
 
         public CreepMovementArguments(TilePosition CreepLocation)
         {
@@ -44,231 +350,9 @@ namespace DruidDefense.Creeps
 
         public void RemData(string key)
         {
-            if(this.Data.ContainsKey(key))
+            if (this.Data.ContainsKey(key))
                 this.Data.Remove(key);
         }
 
-    }
-
-    public class Creep : TileEntity, ICloneable 
-    {
-
-        public delegate void CreepEvent(Creep sender, EventArgs arguments);
-
-        public event CreepEvent OnTileBoundaryOverlap;
-
-        public event CreepEvent OnCreepDeath;
-
-        /// <summary>
-        /// The tile the creep is trying to get to.
-        /// </summary>
-        public TilePosition Goal;
-
-        /// <summary>
-        /// The horizontal and vertical movement speeds for this creep.
-        /// </summary>
-        public Vector2 Speed;
-        /// <summary>
-        /// The direction the creep is headed.
-        /// </summary>
-        public Direction MovementDirection;
-
-        public Direction NextDirectionToGo;
-
-        protected float MovementLeft;
-
-        protected float Health;
-
-        public Creep(Spritesheet sheet, TilePosition startPosition) : this(sheet, startPosition, 100f) { }
-
-        /// <summary>
-        /// Create a new creep entity.
-        /// </summary>
-        public Creep(Spritesheet sheet, TilePosition startPosition, float health) : base(sheet, startPosition) {
-            Speed = new Vector2(1f, 1f);
-
-            // X = Left/Right, Y = Up/Down
-            MovementDirection = Direction.North;
-
-            NextDirectionToGo = Direction.South;
-
-            UnlocalizedName = "Entity.TileEntity.Creep";
-
-            EntityType = Entities.Enemy;
-
-            base.RecalculateHitbox();
-
-            alive = true;
-
-            MovementLeft = 1000;
-
-            this.Health = health;
-
-        }
-
-        public Direction SetNextRandomDirection(){
-            // Console.WriteLine(Game1.PossibleDirections.Length);
-            Direction NewRandomDirection = Game1.PossibleDirections[Game1.Randomizer.Next(0, Game1.PossibleDirections.Length)];
-
-
-
-            return NewRandomDirection;
-        }
-
-        #region Moving
-        public virtual void ChangeMovement(Direction direction, int movementAmount)
-        {
-            this.NextDirectionToGo = direction;
-            this.MovementLeft = movementAmount;
-        }
-
-        public void Move(Direction moveDirection)
-        {
-
-            switch (MovementDirection)
-            {
-                case Direction.North:
-                    if (Location.GridLocation.Y > 0 || 
-                        (Location.GridLocation.Y == 0 && Position.Y > (Location.GridManager.TileSize.Y / 2) ))
-                    {
-                        Position.Y -= Speed.Y;
-                    }
-                    else
-                    {
-                        MovementDirection = SetNextRandomDirection(); 
-                    }
-                    break;
-
-                case Direction.South:
-                    if ((Location.GridLocation.Y < Location.GridManager.GridSize.Y - 1) || 
-                        (Location.GridLocation.Y == Location.GridManager.GridSize.Y - 1 && Position.Y < (Location.GridManager.TileSize.Y / 2)))
-                    {
-                        Position.Y += Speed.Y;
-                    }
-                    else
-                    {
-                        MovementDirection = SetNextRandomDirection();
-                            
-                    }
-
-                    break;
-
-                case Direction.West:
-                    if (Location.GridLocation.X > 0 || 
-                        (Location.GridLocation.X == 0 && Position.X > Location.GridManager.TileSize.X / 2))
-                    {
-                        Position.X -= Speed.X;
-                    }
-                    else
-                    {
-                        MovementDirection = SetNextRandomDirection();  
-                    }
-                    break;
-
-                case Direction.East:
-                    if (Location.GridLocation.X < Location.GridManager.GridSize.X - 1 || 
-                        (Location.GridLocation.X  == Location.GridManager.GridSize.X - 1 && Position.X < (Location.GridManager.TileSize.X / 2)))
-                    {
-                        Position.X += Speed.X;
-                    }
-                    else
-                    {
-                        MovementDirection = SetNextRandomDirection();
-                    }
-
-                    break;
-            }
-        }
-        #endregion
-
-        public virtual void Damage(float amount)
-        {
-            this.Health -= amount;
-            if (Health <= 0)
-            {
-                this.alive = false;
-                if(this.OnCreepDeath != null)
-                    OnCreepDeath(this, EventArgs.Empty);
-            }
-        }
-
-        public override void Update(GameTime time)
-        {
-            Rectangle CreepTileBounds = Location.GetTileDrawingBounds();
-            CreepTileBounds.X = (int)Location.GridLocation.X * Location.GridManager.TileSize.X;
-            CreepTileBounds.Y = (int)Location.GridLocation.Y * Location.GridManager.TileSize.Y;
-
-            Direction CreepDirection = LocationHelper.CheckBounds(Position + Location.GetDrawingLocation(), CreepTileBounds);
-
-            if (CreepDirection != Direction.Inside)
-            {
-                // If the creep left its tile (outside of the tile boundaries)
-                if (this.OnTileBoundaryOverlap != null)
-                {
-                    CreepMovementArguments moveArgs = new CreepMovementArguments((TilePosition)Location.Clone());
-                    moveArgs.AddData("side", CreepDirection);
-                    OnTileBoundaryOverlap(this, moveArgs);
-                }
-            }
-            else
-            {
-                // If the creep is still in its tile.
-                Point CreepLocationInSquare = new Point((int)Position.X, (int)Position.Y);
-                if (CreepLocationInSquare == TilePosition.TileCenter)
-                {
-                    if (MovementLeft > 0)
-                    {
-                        this.MovementDirection = NextDirectionToGo;
-                        NextDirectionToGo = SetNextRandomDirection();
-
-                        if (MovementLeft == 1)
-                        {
-                            MovementLeft = 0.9f;
-                        }
-                        else
-                        {
-                            MovementLeft--;
-                        }
-                    }
-                    else if (MovementLeft < 0)
-                    {
-                        MovementLeft = 0;
-                    }
-                }
-
-                // Creep is still inside its bounds.
-                if (MovementLeft > 0)
-                {
-                    Move(MovementDirection);
-
-                }
-            }
-
-            base.Update(time);
-        }
-
-        public override void Draw(GameTime time, SpriteBatch canvas)
-        {
-            base.Draw(time, canvas, Location.GetDrawingLocation() + Position);
-        }
-
-        public override string ToString()
-        {
-            return "Entity.TileEntity.Creep: " + this.Location.ToString();
-        }
-
-        public override object Clone() {
-
-            Creep NewCreep = new Creep((Spritesheet) this.Sprites.Clone(), (TilePosition) this.Location.Clone());
-
-            NewCreep.SpriteSystem = (AnimationSystem) SpriteSystem.Clone();
-
-            return NewCreep;
-        }
-
-        public override string GetDebugString()
-        {
-            return String.Format("{1}", this.UnlocalizedName, this.Health);
-        }
     }
 }
