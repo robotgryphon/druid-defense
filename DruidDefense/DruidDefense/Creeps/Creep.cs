@@ -73,18 +73,18 @@ namespace DruidDefense.Creeps
         {
             if(this.Location.Equals(Goal)){
 
-                
+                Rectangle PositionAsRect = new Rectangle(HitBox.Center.X - 2, HitBox.Center.Y - 2, 5, 5);
+                Point GoalCenter = Goal.GetTileDrawingBounds().Center;
+                Rectangle GoalCenter2 = new Rectangle(GoalCenter.X - 2, GoalCenter.Y - 2, 5, 5);
+                Rectangle IntersectTest = Rectangle.Intersect(PositionAsRect, GoalCenter2);
 
-                if (((Location.GridManager.TileSize.X / 2) - Position.X) <= (Speed.X / 2))
-                {
-                    if (((Location.GridManager.TileSize.Y / 2) - Position.Y) <= (Speed.Y / 2))
+                if(new Rectangle(0, 0, IntersectTest.Width, IntersectTest.Height).Equals(new Rectangle(0, 0, 5, 5))){
+                    if (this.OnGoalAchieved != null)
                     {
-                        if (this.OnGoalAchieved != null)
-                        {
-                            OnGoalAchieved(this, new CreepMovementArguments((TilePosition)this.Location.Clone()));
-                        }
-                        return true;
+                        OnGoalAchieved(this, new CreepMovementArguments((TilePosition)this.Location.Clone()));
                     }
+
+                    return true;
                 }
                 
             }
@@ -212,24 +212,7 @@ namespace DruidDefense.Creeps
                                 {
                                     MovementDirection = Direction.South;
                                 }
-                                /*
-                                Console.WriteLine(DirToCenter);
-
-                                switch (DirToCenter)
-                                {
-                                    case Direction.NorthWest:
-                                    case Direction.North:
-                                    case Direction.NorthEast:
-                                        this.MovementDirection = Direction.South;
-                                        break;
-
-                                    case Direction.SouthWest:
-                                    case Direction.South:
-                                    case Direction.SouthEast:
-                                        this.MovementDirection = Direction.North;
-                                        break;
-                                }
-                                 * */
+                                
                             }
                             break;
 
@@ -251,25 +234,6 @@ namespace DruidDefense.Creeps
                                 {
                                     MovementDirection = Direction.South;
                                 }
-                                /*
-                                Console.WriteLine(DirToCenter);
-
-                                switch (DirToCenter)
-                                {
-                                    case Direction.NorthWest:
-                                    case Direction.North:
-                                    case Direction.NorthEast:
-                                        this.MovementDirection = Direction.South;
-                                        break;
-
-                                    case Direction.SouthWest:
-                                    case Direction.South:
-                                    case Direction.SouthEast:
-                                        this.MovementDirection = Direction.North;
-                                        break;
-                                }
-                                */
-
                             }
                             break;
 

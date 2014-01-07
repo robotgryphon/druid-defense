@@ -224,7 +224,7 @@ namespace DruidDefense
                 BlobCreep NewCreep = new BlobCreep(new Spritesheet(BlobCreepSheet), (TilePosition) CreepSpawns[Randomizer.Next(0, CreepSpawns.Count())].Clone());
                 NewCreep.UnlocalizedName = "BlobCreep." + CreepHandler.Entities.Count();
                 NewCreep.MovementDirection = Direction.South;
-                NewCreep.Goal = (TilePosition)CreepGoals[Randomizer.Next(0, CreepGoals.Count - 1)].Clone();
+                NewCreep.Goal = (TilePosition)CreepGoals[Randomizer.Next(0, CreepGoals.Count())].Clone();
 
                 NewCreep.OnGoalAchieved += HandleCreepGoalAchieved;
 
@@ -524,7 +524,7 @@ namespace DruidDefense
             canvas.End();
 
             EntityHandler.Draw(time, canvas, (DebugMode ? Segoe : null));
-            CreepHandler.Draw(time, canvas, Segoe, Overlay);
+            CreepHandler.Draw(time, canvas, Segoe);
             base.Draw(time);
         }
     }
