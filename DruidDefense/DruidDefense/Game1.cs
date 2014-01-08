@@ -144,7 +144,7 @@ namespace DruidDefense
 
             // Give the player some money to work with.
             Money = 300f;
-            Life = 100f;
+            Life = 1f;
 
             // Start the game proper, in editing mode.
             PreviousState = GameState.Loading;
@@ -282,15 +282,11 @@ namespace DruidDefense
 
             TimeSinceControllerMove = TimeSinceControllerMove.Add(gameTime.ElapsedGameTime);
 
-            if((CurrentState == GameState.Editing || CurrentState == GameState.Playing) && 
-                (newIS.controllers[0].Buttons.Back == ButtonState.Pressed || KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Escape)))
+            if(CurrentState != GameState.CheatScreen && (newIS.controllers[0].Buttons.Back == ButtonState.Pressed || KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Escape)))
                     this.Exit();
 
-            if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.OemTilde))
-            {
-                PreviousState = GameState.Editing;
-                CurrentState = GameState.CheatScreen;
-            }
+
+            
 
             #region State Handling
             switch (CurrentState){
@@ -339,6 +335,7 @@ namespace DruidDefense
 
                     #endregion
     
+                    // Remove placed towers
                     if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Delete) || (oldIS.controllers[0].Buttons.Y == ButtonState.Released && newIS.controllers[0].Buttons.Y == ButtonState.Pressed)) {
                         String TileTypeAtCursor = GridTileManager.GetTileType(CursorLocation.GridLocation);
                         if (!TileTypeAtCursor.Equals("Tile.Grass") || !TileTypeAtCursor.Equals("Null")) {
@@ -409,14 +406,15 @@ namespace DruidDefense
                     }
                     #endregion
                     
-                    #region Swapping State Testing
-                    // We started the cheat code enterer
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.OemTilde))
+                    #region Swapping State
+
+                    if ((CurrentState != GameState.GameOver) && KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.OemTilde))
                     {
-                        PreviousState = CurrentState;
+                        PreviousState = GameState.Editing;
                         CurrentState = GameState.CheatScreen;
                     }
 
+                    // We started the cheat code enterer
                     if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.P) || (oldIS.controllers[0].Buttons.Start == ButtonState.Released && newIS.controllers[0].Buttons.Start == ButtonState.Pressed))
                     {
                         PreviousState = CurrentState;
@@ -432,6 +430,8 @@ namespace DruidDefense
                     EntityHandler.Update(gameTime);
                     CreepHandler.Update(gameTime);
 
+                    
+
                     // Move from playing to editing
                     if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.P) || 
                         (oldIS.controllers[0].Buttons.Start == ButtonState.Released && newIS.controllers[0].Buttons.Start == ButtonState.Pressed))
@@ -445,6 +445,12 @@ namespace DruidDefense
                         PreviousState = CurrentState;
                         CurrentState = GameState.Editing;
                     
+                    }
+
+                    if ((CurrentState != GameState.GameOver) && KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.OemTilde))
+                    {
+                        PreviousState = GameState.Playing;
+                        CurrentState = GameState.CheatScreen;
                     }
 
                     break;
