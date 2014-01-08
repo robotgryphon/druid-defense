@@ -140,7 +140,7 @@ namespace DruidDefense.Towers
         /// Update this tower's target squares.
         /// </summary>
         /// <param name="ParentTileLocation">The Tower's Parent Tile's TilePosition.</param>
-        public virtual void UpdateRange()
+        public virtual List<TilePosition> FigureOutTilesInRange()
         {
             TilesInRange.Clear();
 
@@ -153,6 +153,8 @@ namespace DruidDefense.Towers
                         this.TilesInRange.Add(possibleTileTarget);
                 }
             }
+
+            return TilesInRange;
         }
 
         public virtual void Update(GameTime time) {
@@ -175,7 +177,7 @@ namespace DruidDefense.Towers
                 }
             }
 
-            this.UpdateRange();
+            this.FigureOutTilesInRange();
         }
 
         public virtual void Draw(GameTime time, SpriteBatch canvas, TilePosition location)

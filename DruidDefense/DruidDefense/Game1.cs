@@ -60,6 +60,7 @@ namespace DruidDefense
         public TilePosition CursorLocation;
         Texture2D CursorImage;
         Texture2D Overlay;
+        Texture2D Hole;
 
         Point Grid_Tile_Size;
 
@@ -155,7 +156,7 @@ namespace DruidDefense
             TilePrices.Add("Tile.Tower." + TowerFactory.TowerType.Medium.ToString(), 25);
             TilePrices.Add("Tile.Tower." + TowerFactory.TowerType.Large.ToString(), 50);
 
-            DebugMode = true;
+            DebugMode = false;
 
             ControllerMoveDelay = new TimeSpan(0, 0, 0, 0, 250);
             TimeSinceControllerMove = new TimeSpan();
@@ -190,7 +191,7 @@ namespace DruidDefense
             Segoe = Content.Load<SpriteFont>("Fonts/Segoe");
             
             // Load in a grass texture.
-            GrassTexture = Content.Load<Texture2D>("Tiles/Grass-Bordered");
+            GrassTexture = Content.Load<Texture2D>("Tiles/Grass");
 
             // Load in the heart for life
             HeartTexture = Content.Load<Texture2D>("Images/Heart");
@@ -205,6 +206,8 @@ namespace DruidDefense
 
             // Creeps
             BlobCreepSheet = Content.Load<Texture2D>("Creeps/Blob");
+
+            Hole = Content.Load<Texture2D>("Images/Hole");
         }
 
         public void HandleCreepSpawnTimeout(CreepHandler handler, EventArgs args)
@@ -216,6 +219,8 @@ namespace DruidDefense
                 NewCreep.Goal = (TilePosition)CreepGoals[Randomizer.Next(0, CreepGoals.Count())].Clone();
 
                 NewCreep.OnGoalAchieved += HandleCreepGoalAchieved;
+
+                NewCreep.OnCreepDeath += HandleCreepDeath;
 
                 CreepHandler.AddCreep(NewCreep, GridTileManager);
         }
@@ -246,6 +251,12 @@ namespace DruidDefense
 
             CurrentState = PreviousState;
             PreviousState = GameState.CheatScreen;
+        }
+
+        public void HandleCreepDeath(Creep sender, EventArgs args)
+        {
+            if(!sender.Location.Equals(sender.Goal))
+                this.Money += Randomizer.Next(1, 10);
         }
 
         public void HandleCreepGoalAchieved(Creep sender, EventArgs args)
@@ -465,8 +476,38 @@ namespace DruidDefense
             // Background - Displaying the tiles
             GridTileManager.Draw(time, canvas, CurrentState == GameState.Playing);
 
+            Vector2 MoneySize = Segoe.MeasureString(String.Format("{0:C}", Money));
+
             if (CurrentState != GameState.GameOver)
             {
+                canvas.Begin();
+                foreach (TilePosition spawn in CreepSpawns)
+                {
+                    canvas.Draw(Hole, spawn.GetTileDrawingBounds(), Color.LightGreen);
+                }
+
+
+                foreach (TilePosition goal in CreepGoals)
+                {
+                    canvas.Draw(Hole, goal.GetTileDrawingBounds(), Color.Red);
+                }
+
+                if (DebugMode)
+                {
+                    foreach (Tile tile in GridTileManager.Tiles)
+                    {
+
+                        if (tile.GetType().Equals(typeof(TileWithTower)))
+                        {
+                            Tower t = ((TileWithTower)tile).TowerObject;
+                            foreach (TilePosition turretTargetTile in t.TilesInRange)
+                            {
+                                canvas.Draw(Overlay, turretTargetTile.GetTileDrawingBounds(), Color.Pink);
+                            }
+                        }
+                    }
+                }
+                canvas.End();
 
                 EntityHandler.Draw(time, canvas, (DebugMode ? Segoe : null));
                 CreepHandler.Draw(time, canvas, Segoe);
@@ -479,14 +520,16 @@ namespace DruidDefense
 
                 case GameState.Editing:
                     // Draw the cursor.
-                    if (DebugMode)
-                    {
-                        // Show start and stop positions for creeps
-                        foreach (TilePosition spawn in CreepSpawns)
-                            canvas.Draw(Overlay, spawn.GetTileDrawingBounds(), Color.Green);
+                    
 
-                        foreach (TilePosition goal in CreepGoals)
-                            canvas.Draw(Overlay, goal.GetTileDrawingBounds(), Color.Red);
+                    foreach (Tile tile in GridTileManager.Tiles)
+                    {
+                        if(tile.GetType().Equals(typeof(TileWithTower))){
+                            TileWithTower thisTile = (TileWithTower) tile;
+                            foreach(TilePosition targetSquare in thisTile.TowerObject.FigureOutTilesInRange()){
+                                canvas.Draw(Overlay, targetSquare.GetTileDrawingBounds(), Color.Orange);
+                            }
+                        }
                     }
 
                     canvas.Draw(
@@ -503,22 +546,11 @@ namespace DruidDefense
                         SpriteEffects.None,
                         (42 / 50));
 
-                    foreach (Tile tile in GridTileManager.Tiles)
-                    {
-
-                        if (tile.GetType().Equals(typeof(TileWithTower)))
-                        {
-                            Tower t = ((TileWithTower)tile).TowerObject;
-                            foreach (TilePosition turretTargetTile in t.TilesInRange)
-                            {
-                                canvas.Draw(Overlay, turretTargetTile.GetTileDrawingBounds(), Color.Pink);
-                            }
-                        }
-                    }
+                    
 
                     #region Shop Display
                     // Money amount display
-                    Vector2 MoneySize = Segoe.MeasureString(String.Format("{0:C}", Money));
+                    
                     canvas.DrawString(Segoe, String.Format("{0:C}", Money), new Vector2(Window.ClientBounds.Width - MoneySize.X - 10, 0), Color.White);
 
                     // Display tower 1
@@ -533,7 +565,7 @@ namespace DruidDefense
                         SpriteEffects.None, 
                         1f);
 
-                    canvas.DrawString(Segoe, String.Format("Z/X ({0})", TilePrices["Tile.Tower." + TowerFactory.TowerType.Small.ToString()]), new Vector2(Tower1Pos.X + 2, Tower1Pos.Y - 11), Color.White);
+                    canvas.DrawString(Segoe, String.Format("A ({0})", TilePrices["Tile.Tower." + TowerFactory.TowerType.Small.ToString()]), new Vector2(Tower1Pos.X + 2, Tower1Pos.Y - 11), Color.White);
 
                     
                     // Display tower 2
@@ -548,7 +580,7 @@ namespace DruidDefense
                         SpriteEffects.None, 
                         1f);
 
-                    canvas.DrawString(Segoe, String.Format("Z/X ({0})", TilePrices["Tile.Tower." + TowerFactory.TowerType.Medium.ToString()]), new Vector2(Tower2Pos.X + 2, Tower2Pos.Y - 11), Color.White);
+                    canvas.DrawString(Segoe, String.Format("B ({0})", TilePrices["Tile.Tower." + TowerFactory.TowerType.Medium.ToString()]), new Vector2(Tower2Pos.X + 2, Tower2Pos.Y - 11), Color.White);
                     #endregion
                     break;
 
@@ -558,7 +590,14 @@ namespace DruidDefense
 
                 case GameState.Playing:
 
-                    
+                    Rectangle MoneyBackdrop = new Rectangle(
+                        (int) Window.ClientBounds.Width - (int) MoneySize.X - 24, 
+                        0, 
+                        (int) MoneySize.X + 22, 
+                        (int) MoneySize.Y + 6);
+
+                    canvas.Draw(Overlay, MoneyBackdrop, new Rectangle(0, 0, 1, 1), Color.Black);
+                    canvas.DrawString(Segoe, string.Format("{0:c}", Money), new Vector2(MoneyBackdrop.X + (MoneyBackdrop.Width - MoneySize.X - 4), MoneyBackdrop.Y + 2), Color.White);
 
                     Vector2 LifePosition = new Vector2(Window.ClientBounds.Width - 60, Window.ClientBounds.Height - 60);
                     canvas.Draw(HeartTexture, new Rectangle((int) LifePosition.X, (int) LifePosition.Y, 40, 40), Color.White);
@@ -578,8 +617,12 @@ namespace DruidDefense
                         1f,
                         SpriteEffects.None,
                         1f);
+
+                    
+
                     break;
 
+                    
             }
 
             
