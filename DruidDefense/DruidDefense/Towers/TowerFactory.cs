@@ -12,12 +12,44 @@ namespace DruidDefense.Towers {
     public class TowerFactory
     {
 
-        public static TileWithTower CreateNewTurret(Spritesheet Textures, TilePosition CursorLocation, Texture2D GrassTexture)
+        public enum TowerType : int
         {
-            TilePosition location = (TilePosition) CursorLocation.Clone();
-            Tower NewTurret = new Tower(location, 120, 2, Textures, new Rectangle(0, 0, 25, 19), new TimeSpan(0, 0, 0, 0, 250));
+            Small = 1,
+            Medium = 2,
+            Large = 3
+        }
+
+        public static TileWithTower CreateNewTower(Spritesheet Textures, TilePosition CursorLocation, Texture2D GrassTexture, TowerType type)
+        {
+            
+
+            Color towerColoration = Color.White;
+            float damage = 1;
+
+            switch (type)
+            {
+                case TowerType.Small:
+                    towerColoration = Color.White;
+                    damage = 1;
+                    break;
+
+                case TowerType.Medium:
+                    towerColoration = Color.LightBlue;
+                    damage = 4;
+                    break;
+
+
+                case TowerType.Large:
+                    towerColoration = Color.LightPink;
+                    damage = 9;
+                    break;
+            }
+
+            Tower NewTurret = new Tower((TilePosition)CursorLocation.Clone(), ((int)type) * 50, ((int) type), damage, Textures, new Rectangle(0, 0, 25, 19), new TimeSpan(0, 0, 0, 0, 250));
             NewTurret.AnimationHandler.GetAnimation("Editor").GetFrame(0).Origin = new Vector2(15, 9);
-            TileWithTower TurretTower = new TileWithTower(NewTurret, GrassTexture, location, "Tile.Tower.Turret");
+            NewTurret.AnimationHandler.GetAnimation("Editor").GetFrame(0).Coloration = towerColoration;
+
+            TileWithTower TurretTower = new TileWithTower(NewTurret, GrassTexture, (TilePosition)CursorLocation.Clone(), "Tile.Tower." + type.ToString());
             return TurretTower;
         }
     }

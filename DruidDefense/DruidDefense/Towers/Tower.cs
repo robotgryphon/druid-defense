@@ -41,13 +41,15 @@ namespace DruidDefense.Towers
 
         public TilePosition ParentTileLocation { get; protected set; }
 
+        public float DamagePerShot;
+
         public Tower(TilePosition ParentTileLocation, Spritesheet TextureSheet, Rectangle DefaultDrawingArea)
-            : this(ParentTileLocation, 100, 50, TextureSheet, DefaultDrawingArea, new TimeSpan()) { }
+            : this(ParentTileLocation, 100, 50, 1, TextureSheet, DefaultDrawingArea, new TimeSpan()) { }
 
         public Tower(TilePosition ParentTileLocation, float Health, Spritesheet TextureSheet, Rectangle DefaultDrawingArea) 
-            : this(ParentTileLocation, Health, 50, TextureSheet, DefaultDrawingArea, new TimeSpan()) { }
+            : this(ParentTileLocation, Health, 50, 1, TextureSheet, DefaultDrawingArea, new TimeSpan()) { }
 
-        public Tower(TilePosition ParentTileLocation, float Health, float Range, Spritesheet TextureSheet, Rectangle DefaultDrawingArea, TimeSpan ReloadSpeed)
+        public Tower(TilePosition ParentTileLocation, float Health, float Range, float dps, Spritesheet TextureSheet, Rectangle DefaultDrawingArea, TimeSpan ReloadSpeed)
         {
             this.TowerTextures = TextureSheet;
 
@@ -67,7 +69,8 @@ namespace DruidDefense.Towers
             this.Reset();
 
             this.ParentTileLocation = ParentTileLocation;
-            
+
+            this.DamagePerShot = dps;
         }
 
         public virtual void Reset()

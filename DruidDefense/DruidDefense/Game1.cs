@@ -143,7 +143,7 @@ namespace DruidDefense
 
             // Give the player some money to work with.
             Money = 300f;
-            Life = 5f;
+            Life = 100f;
 
             // Start the game proper, in editing mode.
             PreviousState = GameState.Loading;
@@ -151,35 +151,24 @@ namespace DruidDefense
 
             TilePrices = new Dictionary<string, float>();
             TilePrices.Add("Tile.Grass", 0);
-            TilePrices.Add("Tile.Tower.Turret", 50);
-            TilePrices.Add("Tile.Tower.Tower2", 10);
-            TilePrices.Add("Tile.Tower.Tower3", 25);
+            TilePrices.Add("Tile.Tower." + TowerFactory.TowerType.Small.ToString(), 10);
+            TilePrices.Add("Tile.Tower." + TowerFactory.TowerType.Medium.ToString(), 25);
+            TilePrices.Add("Tile.Tower." + TowerFactory.TowerType.Large.ToString(), 50);
 
             DebugMode = true;
 
-            ControllerMoveDelay = new TimeSpan(0, 0, 0, 0, 500);
+            ControllerMoveDelay = new TimeSpan(0, 0, 0, 0, 250);
             TimeSinceControllerMove = new TimeSpan();
 
-            CreepHandler = new Creeps.CreepHandler(1000);
-            CreepHandler.SpawnDelay = new TimeSpan(0, 0, 0, 0, 1);
+            CreepHandler = new Creeps.CreepHandler(100);
+            CreepHandler.SpawnDelay = new TimeSpan(0, 0, 0, 2, 0);
 
             CreepGoals = new List<TilePosition>();
-            CreepGoals.Add(new TilePosition(new Point(6, 6), GridTileManager));
+            CreepGoals.Add(new TilePosition(new Point(Randomizer.Next(0, GridTileManager.GridSize.X), GridTileManager.GridSize.Y - 1), GridTileManager));
 
             CreepSpawns = new List<TilePosition>();
-            // Above
-            CreepSpawns.Add(new TilePosition(new Point(3, 3), GridTileManager));
-            CreepSpawns.Add(new TilePosition(new Point(6, 3), GridTileManager));
-            CreepSpawns.Add(new TilePosition(new Point(9, 3), GridTileManager));
+            CreepSpawns.Add(new TilePosition(new Point(3, 1), GridTileManager));
 
-            // On-Level
-            CreepSpawns.Add(new TilePosition(new Point(3, 6), GridTileManager));
-            CreepSpawns.Add(new TilePosition(new Point(9, 6), GridTileManager));
-
-            // Below
-            CreepSpawns.Add(new TilePosition(new Point(3, 9), GridTileManager));
-            CreepSpawns.Add(new TilePosition(new Point(6, 9), GridTileManager));
-            CreepSpawns.Add(new TilePosition(new Point(9, 9), GridTileManager));
             CreepHandler.OnCreepSpawnTimeout += HandleCreepSpawnTimeout;
         }
 
@@ -275,6 +264,11 @@ namespace DruidDefense
 
             newIS.Update();
 
+            if (Life <= 0)
+            {
+                CurrentState = GameState.GameOver;
+            }
+
             TimeSinceControllerMove = TimeSinceControllerMove.Add(gameTime.ElapsedGameTime);
 
             if((CurrentState == GameState.Editing || CurrentState == GameState.Playing) && 
@@ -306,22 +300,34 @@ namespace DruidDefense
                     break;
 
                 case GameState.Editing:
+
                     #region Cursor Moving
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.W) || newIS.controllers[0].ThumbSticks.Left.Y > 0)
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.W) || newIS.controllers[0].ThumbSticks.Left.Y > 0 && TimeSinceControllerMove > ControllerMoveDelay)
+                    {
                         CursorLocation.Reposition(Direction.North);
+                        TimeSinceControllerMove = new TimeSpan();
+                    }
 
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.A) || newIS.controllers[0].ThumbSticks.Left.X < 0)
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.A) || newIS.controllers[0].ThumbSticks.Left.X < 0 && TimeSinceControllerMove > ControllerMoveDelay)
+                    {
                         CursorLocation.Reposition(Direction.West);
+                        TimeSinceControllerMove = new TimeSpan();
+                    }
 
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.S) || newIS.controllers[0].ThumbSticks.Left.Y < 0)
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.S) || newIS.controllers[0].ThumbSticks.Left.Y < 0 && TimeSinceControllerMove > ControllerMoveDelay)
+                    {
                         CursorLocation.Reposition(Direction.South);
+                        TimeSinceControllerMove = new TimeSpan();
+                    }
 
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.D) || newIS.controllers[0].ThumbSticks.Left.X > 0)
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.D) || newIS.controllers[0].ThumbSticks.Left.X > 0 && TimeSinceControllerMove > ControllerMoveDelay)
+                    {
                         CursorLocation.Reposition(Direction.East);
+                        TimeSinceControllerMove = new TimeSpan();
+                    }
 
                     #endregion
-
-                    #region Tower Placing
+    
                     if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Delete) || (oldIS.controllers[0].Buttons.Y == ButtonState.Released && newIS.controllers[0].Buttons.Y == ButtonState.Pressed)) {
                         String TileTypeAtCursor = GridTileManager.GetTileType(CursorLocation.GridLocation);
                         if (!TileTypeAtCursor.Equals("Tile.Grass") || !TileTypeAtCursor.Equals("Null")) {
@@ -330,14 +336,62 @@ namespace DruidDefense
                         }
                     }
 
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Z) || (oldIS.controllers[0].Buttons.A == ButtonState.Released && newIS.controllers[0].Buttons.A == ButtonState.Pressed)) {
-                        if (!GridTileManager.IsTileFilled(CursorLocation.GridLocation)) {
-                            if (Money >= TilePrices["Tile.Tower.Turret"]) {
-                                Money -= TilePrices["Tile.Tower.Turret"];
-                                TileWithTower TurretTower = TowerFactory.CreateNewTurret(TowerPlaceholders, CursorLocation, GrassTexture);
+                    #region Tower Placing
+                    Boolean TryTowerPlace = false;
+                    TowerFactory.TowerType TypeToPlace = TowerFactory.TowerType.Small;
+
+                    if(KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Z) ||
+                        newIS.controllers[0].Buttons.A == ButtonState.Pressed && oldIS.controllers[0].Buttons.A == ButtonState.Released){
+                        TryTowerPlace = true;
+                        TypeToPlace = TowerFactory.TowerType.Small;
+                    }
+
+                    if(KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.X)||
+                        newIS.controllers[0].Buttons.B == ButtonState.Pressed && oldIS.controllers[0].Buttons.B == ButtonState.Released)
+                    {
+                        TryTowerPlace = true;
+                        TypeToPlace = TowerFactory.TowerType.Medium;
+                    }
+
+                    if(KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.C)||
+                        newIS.controllers[0].Buttons.X == ButtonState.Pressed && oldIS.controllers[0].Buttons.X == ButtonState.Released)
+                    {
+                        TryTowerPlace = true;
+                        TypeToPlace = TowerFactory.TowerType.Large;
+                    }
+
+
+                    if(TryTowerPlace)
+                    {
+                        if (!GridTileManager.IsTileFilled(CursorLocation.GridLocation))
+                        {
+                            if (Money >= TilePrices["Tile.Tower." + TypeToPlace.ToString()])
+                            {
+                                Money -= TilePrices["Tile.Tower." + TypeToPlace.ToString()];
+                                TileWithTower TurretTower = TowerFactory.CreateNewTower(TowerPlaceholders, CursorLocation, GrassTexture, TypeToPlace);
                                 GridTileManager.ReplaceTile(TurretTower);
                             }
-                        } else {
+                        }
+                        else
+                        {
+                            // Tile already has something in it
+                            Console.WriteLine("Tile is already filled at: " + CursorLocation.GridLocation.ToString());
+                        }
+                    }
+                    
+                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Z) || (oldIS.controllers[0].Buttons.A == ButtonState.Released && newIS.controllers[0].Buttons.A == ButtonState.Pressed))
+                    {
+                        if (!GridTileManager.IsTileFilled(CursorLocation.GridLocation))
+                        {
+                            if (Money >= TilePrices["Tile.Tower." + TowerFactory.TowerType.Small.ToString()])
+                            {
+                                Money -= TilePrices["Tile.Tower." + TowerFactory.TowerType.Small.ToString()];
+                                TileWithTower TurretTower = TowerFactory.CreateNewTower(TowerPlaceholders, CursorLocation, GrassTexture, TowerFactory.TowerType.Small);
+                                GridTileManager.ReplaceTile(TurretTower);
+                            }
+                        }
+                        else
+                        {
                             // Tile already has something in it
                             Console.WriteLine("Tile is already filled at: " + CursorLocation.GridLocation.ToString());
                         }
@@ -411,6 +465,13 @@ namespace DruidDefense
             // Background - Displaying the tiles
             GridTileManager.Draw(time, canvas, CurrentState == GameState.Playing);
 
+            if (CurrentState != GameState.GameOver)
+            {
+
+                EntityHandler.Draw(time, canvas, (DebugMode ? Segoe : null));
+                CreepHandler.Draw(time, canvas, Segoe);
+            }
+
             // Foreground - Debug Information and Onscreen text.
             canvas.Begin();
 
@@ -418,6 +479,16 @@ namespace DruidDefense
 
                 case GameState.Editing:
                     // Draw the cursor.
+                    if (DebugMode)
+                    {
+                        // Show start and stop positions for creeps
+                        foreach (TilePosition spawn in CreepSpawns)
+                            canvas.Draw(Overlay, spawn.GetTileDrawingBounds(), Color.Green);
+
+                        foreach (TilePosition goal in CreepGoals)
+                            canvas.Draw(Overlay, goal.GetTileDrawingBounds(), Color.Red);
+                    }
+
                     canvas.Draw(
                         CursorImage,
                         new Rectangle(
@@ -462,7 +533,7 @@ namespace DruidDefense
                         SpriteEffects.None, 
                         1f);
 
-                    canvas.DrawString(Segoe, String.Format("Z/X ({0})", TilePrices["Tile.Tower.Turret"]), new Vector2(Tower1Pos.X + 2, Tower1Pos.Y - 11), Color.White);
+                    canvas.DrawString(Segoe, String.Format("Z/X ({0})", TilePrices["Tile.Tower." + TowerFactory.TowerType.Small.ToString()]), new Vector2(Tower1Pos.X + 2, Tower1Pos.Y - 11), Color.White);
 
                     
                     // Display tower 2
@@ -477,7 +548,7 @@ namespace DruidDefense
                         SpriteEffects.None, 
                         1f);
 
-                    canvas.DrawString(Segoe, String.Format("Z/X ({0})", TilePrices["Tile.Tower.Turret"]), new Vector2(Tower2Pos.X + 2, Tower2Pos.Y - 11), Color.White);
+                    canvas.DrawString(Segoe, String.Format("Z/X ({0})", TilePrices["Tile.Tower." + TowerFactory.TowerType.Medium.ToString()]), new Vector2(Tower2Pos.X + 2, Tower2Pos.Y - 11), Color.White);
                     #endregion
                     break;
 
@@ -486,6 +557,8 @@ namespace DruidDefense
                     break;
 
                 case GameState.Playing:
+
+                    
 
                     Vector2 LifePosition = new Vector2(Window.ClientBounds.Width - 60, Window.ClientBounds.Height - 60);
                     canvas.Draw(HeartTexture, new Rectangle((int) LifePosition.X, (int) LifePosition.Y, 40, 40), Color.White);
@@ -511,20 +584,12 @@ namespace DruidDefense
 
             
 
-            if(DebugMode)
-            {
-                // Show start and stop positions for creeps
-                foreach (TilePosition spawn in CreepSpawns)
-                    canvas.Draw(Overlay, spawn.GetTileDrawingBounds(), Color.Green);
-
-                foreach(TilePosition goal in CreepGoals)
-                    canvas.Draw(Overlay, goal.GetTileDrawingBounds(), Color.Red);
-            }
+            
 
             canvas.End();
 
-            EntityHandler.Draw(time, canvas, (DebugMode ? Segoe : null));
-            CreepHandler.Draw(time, canvas, Segoe);
+            
+            
             base.Draw(time);
         }
     }

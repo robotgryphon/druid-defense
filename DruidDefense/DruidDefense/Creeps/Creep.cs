@@ -73,12 +73,12 @@ namespace DruidDefense.Creeps
         {
             if(this.Location.Equals(Goal)){
 
-                Rectangle PositionAsRect = new Rectangle(HitBox.Center.X - 2, HitBox.Center.Y - 2, 5, 5);
                 Point GoalCenter = Goal.GetTileDrawingBounds().Center;
-                Rectangle GoalCenter2 = new Rectangle(GoalCenter.X - 2, GoalCenter.Y - 2, 5, 5);
-                Rectangle IntersectTest = Rectangle.Intersect(PositionAsRect, GoalCenter2);
 
-                if(new Rectangle(0, 0, IntersectTest.Width, IntersectTest.Height).Equals(new Rectangle(0, 0, 5, 5))){
+                double distanceToCenter = Math.Sqrt(Math.Pow((Location.GetDrawingLocation().X + Position.X) - GoalCenter.X, 2) + Math.Pow((Location.GetDrawingLocation().Y + Position.Y) - GoalCenter.Y, 2));
+
+                // If we're within 15 pixels of the goal tile's center, we reached our goal
+                if(distanceToCenter <= 15){
                     if (this.OnGoalAchieved != null)
                     {
                         OnGoalAchieved(this, new CreepMovementArguments((TilePosition)this.Location.Clone()));
@@ -146,7 +146,7 @@ namespace DruidDefense.Creeps
             Move(MovementDirection, Speed);
 
             
-            // If the creep is still in its tile.
+            // If the creep has not reached its goal.
             if (!IsGoalAchieved())
             {
 
@@ -239,8 +239,7 @@ namespace DruidDefense.Creeps
 
                         case Direction.Inside:
                             // Flail. Where the heck should we go?
-                            if(this.OnGoalAchieved != null)
-                                OnGoalAchieved(this, new CreepMovementArguments((TilePosition)this.Location.Clone()));
+                            
                             break;
 
                         default:

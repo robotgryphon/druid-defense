@@ -1,5 +1,3 @@
-﻿
-	THINGS TO DO LIST
+﻿THINGS TO DO LIST
 
-	Finish implementing creep movement algorithm.
-	Sound.
+Priority: Make creeps take damage off entities in their tiles.
