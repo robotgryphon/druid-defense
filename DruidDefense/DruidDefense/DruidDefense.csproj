@@ -116,7 +116,7 @@
     <Compile Include="Creeps\CreepHandler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Program.cs" />
-    <Compile Include="Game1.cs" />
+    <Compile Include="MainGame.cs" />
     <Compile Include="Tiles\DefenseTileManager.cs" />
     <Compile Include="Tiles\TileWithTower.cs" />
     <Compile Include="Towers\Tower.cs" />

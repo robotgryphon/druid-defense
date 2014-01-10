@@ -33,6 +33,21 @@ namespace DruidDefense.Tiles
             }
         }
 
+        public void DrawTowerRanges(SpriteBatch canvas, Texture2D Overlay)
+        {
+            foreach (Tile tile in Tiles)
+            {
+                if (tile.GetType().Equals(typeof(TileWithTower)))
+                {
+                    TileWithTower thisTile = (TileWithTower)tile;
+                    foreach (TilePosition targetSquare in thisTile.TowerObject.FigureOutTilesInRange())
+                    {
+                        canvas.Draw(Overlay, targetSquare.GetTileDrawingBounds(), Color.Orange);
+                    }
+                }
+            }
+        }
+
         public override void Draw(GameTime time, SpriteBatch canvas)
         {
             this.Draw(time, canvas, false);

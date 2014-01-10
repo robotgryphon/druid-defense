@@ -12,7 +12,7 @@ namespace DruidDefense.Towers {
     public class TowerFactory
     {
 
-        public enum TowerType : int
+        public enum TowerType : int 
         {
             Small = 1,
             Medium = 2,
@@ -51,6 +51,33 @@ namespace DruidDefense.Towers {
 
             TileWithTower TurretTower = new TileWithTower(NewTurret, GrassTexture, (TilePosition)CursorLocation.Clone(), "Tile.Tower." + type.ToString());
             return TurretTower;
+        }
+
+        public static Frame CreateTowerImage(TowerType type, Spritesheet Textures)
+        {
+
+            Frame towerImage = new Frame(new Rectangle(0, 0, 25, 19), Vector2.Zero, 1f, 0f, Vector2.Zero, 1f);
+
+            Color towerColoration = Color.White;
+            switch (type)
+            {
+                case TowerType.Small:
+                    towerColoration = Color.White;
+                    break;
+
+                case TowerType.Medium:
+                    towerColoration = Color.LightBlue;
+                    break;
+
+
+                case TowerType.Large:
+                    towerColoration = Color.LightPink;
+                    break;
+            }
+
+            towerImage.Coloration = towerColoration;
+
+            return towerImage;
         }
     }
 }

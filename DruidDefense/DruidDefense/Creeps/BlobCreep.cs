@@ -26,7 +26,7 @@ namespace DruidDefense.Creeps
                 new Vector2(Size.X / 2, Size.Y / 2),
                 1f);
 
-            NewFrame.Coloration = new Color(Game1.Randomizer.Next(0, 255), Game1.Randomizer.Next(0, 255), Game1.Randomizer.Next(0, 255));
+            NewFrame.Coloration = new Color(MainGame.Randomizer.Next(0, 255), MainGame.Randomizer.Next(0, 255), MainGame.Randomizer.Next(0, 255));
 
             SpriteSystem.AddAnimation("Still").SetNextInQueue("Still");
             SpriteSystem.GetAnimation("Still").AddFrame(NewFrame);

@@ -35,7 +35,7 @@ namespace DruidDefense
     /// <summary>
     /// This is the main type for your game
     /// </summary>
-    public class Game1 : Microsoft.Xna.Framework.Game
+    public class MainGame : Game
     {
         GraphicsDeviceManager graphics;
         SpriteBatch canvas;
@@ -44,25 +44,19 @@ namespace DruidDefense
         InputState newIS;
 
         SpriteFont Segoe;
-
-        Texture2D DebugSkin;
         
-        // Handlers. Handlers everywhere.
         DefenseTileManager GridTileManager;
         EntityHandler EntityHandler;
-        CreepHandler CreepHandler;
-
-        Spritesheet TowerPlaceholders;
+        
+        Spritesheet TurretSpritesheet;
         Texture2D GrassTexture;
         Texture2D HeartTexture;
-
-        // Tracks where the cursor is at over the board
-        public TilePosition CursorLocation;
-        Texture2D CursorImage;
         Texture2D Overlay;
         Texture2D Hole;
 
-        Point Grid_Tile_Size;
+        // Tracks where the cursor is at over the board
+        TilePosition CursorLocation;
+        Texture2D CursorImage;
 
         CheatCodeManager CheatCodeSystem;
 
@@ -72,6 +66,7 @@ namespace DruidDefense
         float Money;
         float Life;
 
+        Dictionary<TowerFactory.TowerType, InputBinding> TowerInputBinding;
         Dictionary<String, float> TilePrices;
 
         Boolean DebugMode;
@@ -79,17 +74,15 @@ namespace DruidDefense
         TimeSpan ControllerMoveDelay;
         TimeSpan TimeSinceControllerMove;
 
+        Texture2D CreepTextures;
+        
+        CreepHandler CreepHandler;
         List<TilePosition> CreepSpawns;
         List<TilePosition> CreepGoals;
 
         public static Random Randomizer;
 
-        // Creep testing stuffs.
-        public Texture2D BlobCreepSheet;
-
-        public static Direction[] PossibleDirections = { Direction.North, Direction.South, Direction.West, Direction.East };
-
-        public Game1()
+        public MainGame()
         {
             graphics = new GraphicsDeviceManager(this);
 
@@ -103,10 +96,8 @@ namespace DruidDefense
         }
 
         /// <summary>
-        /// Allows the game to perform any initialization it needs to before starting to run.
-        /// This is where it can query for any required services and load any non-graphic
-        /// related content.  Calling base.Initialize will enumerate through any components
-        /// and initialize them as well.
+        /// Initialize all the variables to their default settings.
+        /// Setup ALL the things!
         /// </summary>
         protected override void Initialize()
         {
@@ -119,11 +110,8 @@ namespace DruidDefense
             oldIS = new InputState().Update();
             newIS = new InputState().Update();
 
-            // Define the size of the grid tiles
-            Grid_Tile_Size = new Point(42, 42);
-
             // Initialize the tile manager (grid system)
-            GridTileManager = new DefenseTileManager(new Point(16, 12), Grid_Tile_Size);
+            GridTileManager = new DefenseTileManager(new Point(16, 12), new Point(42, 42));
 
             // Define the starting location for the editing cursor
             CursorLocation = new TilePosition(Point.Zero, GridTileManager);
@@ -139,7 +127,7 @@ namespace DruidDefense
                 }
 
             // Initialize the cheat code system.
-            CheatCodeSystem = new CheatCodeManager(10, (int)CaptureSources.Keyboard, new TimeSpan(0, 0, 0, 0, 200));
+            CheatCodeSystem = new CheatCodeManager(10, CaptureSource.Keyboard, new TimeSpan(0, 0, 0, 0, 200));
             CheatCodeSystem.CheatCodeSubmitted += CheatCodeFinished;
 
             // Give the player some money to work with.
@@ -156,6 +144,11 @@ namespace DruidDefense
             TilePrices.Add("Tile.Tower." + TowerFactory.TowerType.Medium.ToString(), 25);
             TilePrices.Add("Tile.Tower." + TowerFactory.TowerType.Large.ToString(), 50);
 
+            TowerInputBinding = new Dictionary<TowerFactory.TowerType, InputBinding>();
+            TowerInputBinding.Add(TowerFactory.TowerType.Small, new InputBinding(Keys.Z, Buttons.X));
+            TowerInputBinding.Add(TowerFactory.TowerType.Medium, new InputBinding(Keys.X, Buttons.A));
+            TowerInputBinding.Add(TowerFactory.TowerType.Large, new InputBinding(Keys.C, Buttons.B));
+
             DebugMode = false;
 
             ControllerMoveDelay = new TimeSpan(0, 0, 0, 0, 250);
@@ -167,8 +160,20 @@ namespace DruidDefense
             CreepGoals = new List<TilePosition>();
             CreepGoals.Add(new TilePosition(new Point(Randomizer.Next(0, GridTileManager.GridSize.X), GridTileManager.GridSize.Y - 1), GridTileManager));
 
+            List<int> CreepSpawnXs = new List<int>();
             CreepSpawns = new List<TilePosition>();
-            CreepSpawns.Add(new TilePosition(new Point(3, 1), GridTileManager));
+
+            while(CreepSpawnXs.Count() < 3){
+                int RandomSpawnX = Randomizer.Next(0, GridTileManager.GridSize.X);
+                if(CreepSpawnXs.Contains(RandomSpawnX)){
+                    // Can not add, spawn already exists
+                } else {
+                    // Spawn does not exist yet, add it
+                    CreepSpawnXs.Add(RandomSpawnX);
+                    CreepSpawns.Add(new TilePosition(new Point(RandomSpawnX, 0), GridTileManager));
+                }
+            }
+            
 
             CreepHandler.OnCreepSpawnTimeout += HandleCreepSpawnTimeout;
         }
@@ -196,16 +201,14 @@ namespace DruidDefense
             // Load in the heart for life
             HeartTexture = Content.Load<Texture2D>("Images/Heart");
 
-            TowerPlaceholders = new Spritesheet(Content.Load<Texture2D>("Towers/Tower-Base"));
+            TurretSpritesheet = new Spritesheet(Content.Load<Texture2D>("Towers/Tower-Base"));
 
             CursorImage = Content.Load<Texture2D>("Images/Pointer");
 
-            DebugSkin = Content.Load<Texture2D>("Images/DebugSkin");
-
-            Overlay = Content.Load<Texture2D>("Tiles/Overlay");
+            Overlay = Content.Load<Texture2D>("Images/Overlay");
 
             // Creeps
-            BlobCreepSheet = Content.Load<Texture2D>("Creeps/Blob");
+            CreepTextures = Content.Load<Texture2D>("Creeps/Blob");
 
             Hole = Content.Load<Texture2D>("Images/Hole");
         }
@@ -213,7 +216,7 @@ namespace DruidDefense
         public void HandleCreepSpawnTimeout(CreepHandler handler, EventArgs args)
         {
 
-                BlobCreep NewCreep = new BlobCreep(new Spritesheet(BlobCreepSheet), (TilePosition) CreepSpawns[Randomizer.Next(0, CreepSpawns.Count())].Clone());
+                BlobCreep NewCreep = new BlobCreep(new Spritesheet(CreepTextures), (TilePosition) CreepSpawns[Randomizer.Next(0, CreepSpawns.Count())].Clone());
                 NewCreep.UnlocalizedName = "BlobCreep." + CreepHandler.Entities.Count();
                 NewCreep.MovementDirection = Direction.South;
                 NewCreep.Goal = (TilePosition)CreepGoals[Randomizer.Next(0, CreepGoals.Count())].Clone();
@@ -285,9 +288,6 @@ namespace DruidDefense
             if(CurrentState != GameState.CheatScreen && (newIS.controllers[0].Buttons.Back == ButtonState.Pressed || KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Escape)))
                     this.Exit();
 
-
-            
-
             #region State Handling
             switch (CurrentState){
                 case GameState.CheatScreen:
@@ -344,67 +344,27 @@ namespace DruidDefense
                         }
                     }
 
-                    #region Tower Placing
-                    Boolean TryTowerPlace = false;
-                    TowerFactory.TowerType TypeToPlace = TowerFactory.TowerType.Small;
-
-                    if(KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Z) ||
-                        newIS.controllers[0].Buttons.A == ButtonState.Pressed && oldIS.controllers[0].Buttons.A == ButtonState.Released){
-                        TryTowerPlace = true;
-                        TypeToPlace = TowerFactory.TowerType.Small;
-                    }
-
-                    if(KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.X)||
-                        newIS.controllers[0].Buttons.B == ButtonState.Pressed && oldIS.controllers[0].Buttons.B == ButtonState.Released)
+                    foreach (KeyValuePair<TowerFactory.TowerType, InputBinding> towerKeybind in TowerInputBinding)
                     {
-                        TryTowerPlace = true;
-                        TypeToPlace = TowerFactory.TowerType.Medium;
-                    }
-
-                    if(KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.C)||
-                        newIS.controllers[0].Buttons.X == ButtonState.Pressed && oldIS.controllers[0].Buttons.X == ButtonState.Released)
-                    {
-                        TryTowerPlace = true;
-                        TypeToPlace = TowerFactory.TowerType.Large;
-                    }
-
-
-                    if(TryTowerPlace)
-                    {
-                        if (!GridTileManager.IsTileFilled(CursorLocation.GridLocation))
+                        if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, towerKeybind.Value.key) ||
+                            newIS.controllers[0].IsButtonDown(towerKeybind.Value.button) && oldIS.controllers[0].IsButtonUp(towerKeybind.Value.button))
                         {
-                            if (Money >= TilePrices["Tile.Tower." + TypeToPlace.ToString()])
+                            if (!GridTileManager.IsTileFilled(CursorLocation.GridLocation))
                             {
-                                Money -= TilePrices["Tile.Tower." + TypeToPlace.ToString()];
-                                TileWithTower TurretTower = TowerFactory.CreateNewTower(TowerPlaceholders, CursorLocation, GrassTexture, TypeToPlace);
-                                GridTileManager.ReplaceTile(TurretTower);
+                                if (Money >= TilePrices["Tile.Tower." + towerKeybind.Key.ToString()])
+                                {
+                                    Money -= TilePrices["Tile.Tower." + towerKeybind.Key.ToString()];
+                                    TileWithTower TurretTower = TowerFactory.CreateNewTower(TurretSpritesheet, CursorLocation, GrassTexture, towerKeybind.Key);
+                                    GridTileManager.ReplaceTile(TurretTower);
+                                }
+                            }
+                            else
+                            {
+                                // Tile already has something in it
+                                Console.WriteLine("Tile is already filled at: " + CursorLocation.GridLocation.ToString());
                             }
                         }
-                        else
-                        {
-                            // Tile already has something in it
-                            Console.WriteLine("Tile is already filled at: " + CursorLocation.GridLocation.ToString());
-                        }
                     }
-                    
-                    if (KeyboardHelper.WasKeyJustPressed(oldIS, newIS, Keys.Z) || (oldIS.controllers[0].Buttons.A == ButtonState.Released && newIS.controllers[0].Buttons.A == ButtonState.Pressed))
-                    {
-                        if (!GridTileManager.IsTileFilled(CursorLocation.GridLocation))
-                        {
-                            if (Money >= TilePrices["Tile.Tower." + TowerFactory.TowerType.Small.ToString()])
-                            {
-                                Money -= TilePrices["Tile.Tower." + TowerFactory.TowerType.Small.ToString()];
-                                TileWithTower TurretTower = TowerFactory.CreateNewTower(TowerPlaceholders, CursorLocation, GrassTexture, TowerFactory.TowerType.Small);
-                                GridTileManager.ReplaceTile(TurretTower);
-                            }
-                        }
-                        else
-                        {
-                            // Tile already has something in it
-                            Console.WriteLine("Tile is already filled at: " + CursorLocation.GridLocation.ToString());
-                        }
-                    }
-                    #endregion
                     
                     #region Swapping State
 
@@ -455,6 +415,11 @@ namespace DruidDefense
 
                     break;
 
+                case GameState.GameOver:
+                    if(newIS.keyboard.GetPressedKeys().Count() > 0)
+                        Initialize();
+                    break;
+
                 default:
                     // Run any extra code here.
                     break;
@@ -476,16 +441,19 @@ namespace DruidDefense
         /// <param name="time">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime time)
         {
-            // 56, 70, 19 is the grass' main color
-            GraphicsDevice.Clear(new Color(56, 70, 19));
 
-            // Background - Displaying the tiles
-            GridTileManager.Draw(time, canvas, CurrentState == GameState.Playing);
+            Color TileColor = new Color(56, 70, 19);
+
+            // 56, 70, 19 is the grass' main color
+            GraphicsDevice.Clear(CurrentState == GameState.GameOver ? Color.Black : TileColor);
 
             Vector2 MoneySize = Segoe.MeasureString(String.Format("{0:C}", Money));
 
             if (CurrentState != GameState.GameOver)
             {
+                // Background - Displaying the tiles
+                GridTileManager.Draw(time, canvas, CurrentState == GameState.Playing);
+
                 canvas.Begin();
                 foreach (TilePosition spawn in CreepSpawns)
                 {
@@ -526,23 +494,14 @@ namespace DruidDefense
 
                 case GameState.Editing:
                     // Draw the cursor.
-                    
 
-                    foreach (Tile tile in GridTileManager.Tiles)
-                    {
-                        if(tile.GetType().Equals(typeof(TileWithTower))){
-                            TileWithTower thisTile = (TileWithTower) tile;
-                            foreach(TilePosition targetSquare in thisTile.TowerObject.FigureOutTilesInRange()){
-                                canvas.Draw(Overlay, targetSquare.GetTileDrawingBounds(), Color.Orange);
-                            }
-                        }
-                    }
+                    GridTileManager.DrawTowerRanges(canvas, Overlay);
 
                     canvas.Draw(
                         CursorImage,
                         new Rectangle(
-                            (int)CursorLocation.GetDrawingLocation().X + Grid_Tile_Size.X / 2,
-                            (int)CursorLocation.GetDrawingLocation().Y + Grid_Tile_Size.Y / 2,
+                            (int)CursorLocation.GetDrawingLocation().X + GridTileManager.TileSize.X / 2,
+                            (int)CursorLocation.GetDrawingLocation().Y + GridTileManager.TileSize.Y / 2,
                             CursorImage.Bounds.Width,
                             CursorImage.Bounds.Height),
                         new Rectangle(0, 0, 25, 27),
@@ -552,42 +511,16 @@ namespace DruidDefense
                         SpriteEffects.None,
                         (42 / 50));
 
-                    
-
-                    #region Shop Display
-                    // Money amount display
-                    
                     canvas.DrawString(Segoe, String.Format("{0:C}", Money), new Vector2(Window.ClientBounds.Width - MoneySize.X - 10, 0), Color.White);
 
-                    // Display tower 1
-                    Rectangle Tower1Pos = new Rectangle(Window.ClientBounds.Width - 95, 11 + GridTileManager.TileSize.Y, 25, 19);
-                    canvas.Draw(
-                        TowerPlaceholders.GetSheet(), 
-                        Tower1Pos, 
-                        new Rectangle(0, 0, 25, 19), 
-                        Color.White, 
-                        MathHelper.ToRadians(90), 
-                        Vector2.Zero, 
-                        SpriteEffects.None, 
-                        1f);
+                    foreach (TowerFactory.TowerType type in Enum.GetValues(typeof(TowerFactory.TowerType)))
+                    {
+                        Frame TowerImage = TowerFactory.CreateTowerImage(type, TurretSpritesheet);
+                        TowerImage.Draw(time, canvas, TurretSpritesheet, new Vector2(Window.ClientBounds.Width - 125, 11 + (GridTileManager.TileSize.Y * (int) type)));
 
-                    canvas.DrawString(Segoe, String.Format("A ({0})", TilePrices["Tile.Tower." + TowerFactory.TowerType.Small.ToString()]), new Vector2(Tower1Pos.X + 2, Tower1Pos.Y - 11), Color.White);
+                        canvas.DrawString(Segoe, String.Format("({0:C})", TilePrices["Tile.Tower." + type.ToString()]), new Vector2(Window.ClientBounds.Width + TowerImage.Area.Width - 120, GridTileManager.TileSize.Y * (int) type + 5), Color.White);
+                    }
 
-                    
-                    // Display tower 2
-                    Rectangle Tower2Pos = new Rectangle(Window.ClientBounds.Width - 95, 11 + (GridTileManager.TileSize.Y * 2), 25, 19);
-                    canvas.Draw(
-                        TowerPlaceholders.GetSheet(), 
-                        Tower2Pos, 
-                        new Rectangle(0, 0, 25, 19), 
-                        Color.LightBlue, 
-                        MathHelper.ToRadians(90), 
-                        Vector2.Zero, 
-                        SpriteEffects.None, 
-                        1f);
-
-                    canvas.DrawString(Segoe, String.Format("B ({0})", TilePrices["Tile.Tower." + TowerFactory.TowerType.Medium.ToString()]), new Vector2(Tower2Pos.X + 2, Tower2Pos.Y - 11), Color.White);
-                    #endregion
                     break;
 
                 case GameState.CheatScreen:
@@ -624,21 +557,34 @@ namespace DruidDefense
                         SpriteEffects.None,
                         1f);
 
-                    
+                    break;
+
+                case GameState.GameOver:
+                    canvas.DrawString(Segoe, "GAME OVER!", new Vector2(10, 10), Color.Red, 0, Vector2.Zero, 2f, SpriteEffects.None, 1f);
+
+                    Vector2 LineHeight = new Vector2(0, Segoe.MeasureString("M").Y + 4);
+
+                    Vector2 curPos = new Vector2(10, 50);
+                    canvas.DrawString(Segoe, "Programmer: ", curPos, Color.White);
+                    canvas.DrawString(Segoe, "Ted Senft", curPos + new Vector2(Segoe.MeasureString("Programmer: ").X, 0), Color.LightBlue);
+
+                    curPos += LineHeight;
+                    canvas.DrawString(Segoe, "Graphics: ", curPos, Color.White);
+                    canvas.DrawString(Segoe, "Some Person", curPos + new Vector2(Segoe.MeasureString("Graphics: ").X, 0), Color.LightBlue);
+
+                    canvas.DrawString(Segoe, "Press any key to restart.",
+                        new Vector2(
+                            Window.ClientBounds.Width - Segoe.MeasureString("Press any key to restart.").X - 8,
+                            Window.ClientBounds.Height - Segoe.MeasureString("Press any key to restart.").Y - 8),
+                        Color.Green);
 
                     break;
 
                     
             }
 
-            
-
-            
-
             canvas.End();
 
-            
-            
             base.Draw(time);
         }
     }
